@@ -22,6 +22,9 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
     setMessage('')
 
     try {
+      // Debug: verificar se o Supabase está configurado
+      console.log('Attempting login/signup...')
+      
       if (isSignUp) {
         // Criar conta
         const { data, error } = await supabase.auth.signUp({
@@ -34,7 +37,10 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
           }
         })
 
-        if (error) throw error
+        if (error) {
+          console.error('Signup error:', error)
+          throw error
+        }
 
         if (data.user && !data.session) {
           setMessage('Verifique seu email para confirmar a conta!')
@@ -49,13 +55,33 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
           password,
         })
 
-        if (error) throw error
+        if (error) {
+          console.error('Login error:', error)
+          throw error
+        }
 
         setMessage('Login realizado com sucesso!')
         onSuccess?.()
       }
     } catch (error: any) {
-      setError(error.message || 'Erro desconhecido')
+      console.error('Auth error details:', error)
+      
+      // Melhor tratamento de erro
+      let errorMessage = 'Erro desconhecido'
+      
+      if (error.message) {
+        if (error.message.includes('Invalid login credentials')) {
+          errorMessage = 'Email ou senha incorretos'
+        } else if (error.message.includes('User not confirmed')) {
+          errorMessage = 'Por favor, confirme seu email antes de fazer login'
+        } else if (error.message.includes('not valid JSON')) {
+          errorMessage = 'Erro de configuração. Tente novamente em alguns minutos.'
+        } else {
+          errorMessage = error.message
+        }
+      }
+      
+      setError(errorMessage)
     } finally {
       setLoading(false)
     }
