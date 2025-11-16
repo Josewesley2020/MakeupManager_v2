@@ -1,12 +1,16 @@
 import { createClient } from '@supabase/supabase-js'
 
-// Configurações do Supabase com fallback para GitHub Pages
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://rpjuaileygcrlcekxseo.supabase.co'
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJwanVhaWxleWdjcmxjZWt4c2VvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzNzA1MDYsImV4cCI6MjA3NDk0NjUwNn0.mVZAjPBdLGWKvxzmIi5aCaUuXgVV8Hnmi34ZsBrVGbw'
+// Configurações do Supabase - usar sempre os valores diretos para GitHub Pages
+const supabaseUrl = 'https://rpjuaileygcrlcekxseo.supabase.co'
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJwanVhaWxleWdjcmxjZWt4c2VvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzNzA1MDYsImV4cCI6MjA3NDk0NjUwNn0.mVZAjPBdLGWKvxzmIi5aCaUuXgVV8Hnmi34ZsBrVGbw'
 
 // Debug para verificar se as variáveis estão sendo carregadas
 console.log('Supabase URL:', supabaseUrl)
 console.log('Supabase Key exists:', !!supabaseAnonKey)
+console.log('Environment vars:', {
+  url: import.meta.env.VITE_SUPABASE_URL,
+  key: !!import.meta.env.VITE_SUPABASE_ANON_KEY
+})
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables')
