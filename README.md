@@ -467,3 +467,4 @@ Ver status: https://github.com/avanade-josewesley/MakeupManager/actions
 
 **💄 Transformando a gestão de maquiladoras profissionais!**
 # GitHub Pages Deploy Test
+
