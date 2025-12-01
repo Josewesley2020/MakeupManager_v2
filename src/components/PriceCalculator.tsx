@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { supabase, formatDuration, formatDate, formatDateTime } from '../lib/supabase'
 import NumericInput from './NumericInput'
+import PaymentService from '../lib/PaymentService'
 
 interface PriceCalculatorProps {
   user: any
@@ -540,8 +541,6 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
           scheduled_time: null,
           status: 'pending',
           appointment_address: null,
-          total_received: 0,
-          payment_down_payment_paid: 0,
           payment_total_service: totalServiceValue,
           travel_fee: travelFeeValue,
           payment_total_appointment: totalAppointmentValue,
@@ -786,10 +785,8 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
           scheduled_time: isAppointmentConfirmed ? appointmentTime : null,
           status: isAppointmentConfirmed ? 'confirmed' : 'pending',
           appointment_address: appointmentAddress || null,
-          total_received: downPaymentPaid,
 
           // Campos de pagamento
-          payment_down_payment_paid: downPaymentPaid,
           payment_total_service: servicesOnlyValue, // Valor apenas dos serviços
           travel_fee: travelFee, // Taxa de deslocamento
           payment_total_appointment: totalAppointmentValue, // Valor total (serviços + taxa)

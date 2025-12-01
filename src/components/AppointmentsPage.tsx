@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { supabase, formatDuration, formatDate, formatDateTime } from '../lib/supabase'
+import PaymentService from '../lib/PaymentService'
 import { Container } from './Container'
 
 interface AppointmentsPageProps {
@@ -16,8 +17,6 @@ interface Appointment {
   scheduled_time: string | null
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled'
   appointment_address: string | null
-  total_received: number
-  payment_down_payment_paid: number
   payment_total_service: number
   travel_fee: number
   payment_total_appointment: number
@@ -46,7 +45,7 @@ export default function AppointmentsPage({ user, onBack, initialFilter = 'all', 
     scheduled_time: '',
     notes: '',
     payment_status: 'pending' as 'pending' | 'paid',
-    total_received: 0,
+    total_amount_paid: 0,
     payment_total_service: 0,
     travel_fee: 0
   })
@@ -121,8 +120,6 @@ export default function AppointmentsPage({ user, onBack, initialFilter = 'all', 
           scheduled_time,
           status,
           appointment_address,
-          total_received,
-          payment_down_payment_paid,
           payment_total_service,
           travel_fee,
           payment_total_appointment,
@@ -247,7 +244,7 @@ export default function AppointmentsPage({ user, onBack, initialFilter = 'all', 
       scheduled_time: appointment.scheduled_time || '',
       notes: appointment.notes || '',
       payment_status: appointment.payment_status,
-      total_received: appointment.total_received,
+      total_amount_paid: appointment.total_amount_paid || 0,
       payment_total_service: appointment.payment_total_service,
       travel_fee: appointment.travel_fee
     })
@@ -261,6 +258,7 @@ export default function AppointmentsPage({ user, onBack, initialFilter = 'all', 
       scheduled_time: '',
       notes: '',
       payment_status: 'pending',
+      total_amount_paid: 0,
       total_received: 0,
       payment_total_service: 0,
       travel_fee: 0
@@ -274,7 +272,7 @@ export default function AppointmentsPage({ user, onBack, initialFilter = 'all', 
       // Se o status for alterado para "completed", considerar que o pagamento também foi realizado
       const isStatusChangedToCompleted = editForm.status === 'completed' && editingAppointment.status !== 'completed'
       const updatedPaymentStatus = isStatusChangedToCompleted ? 'paid' : editForm.payment_status
-      const updatedTotalReceived = isStatusChangedToCompleted ? editingAppointment.payment_total_service : editForm.total_received
+      const updatedTotalPaid = isStatusChangedToCompleted ? editingAppointment.payment_total_service : editForm.total_amount_paid
 
       // Verificar se os valores financeiros foram editados
       const wasServiceValueEdited = editForm.payment_total_service !== editingAppointment.payment_total_service
@@ -282,11 +280,7 @@ export default function AppointmentsPage({ user, onBack, initialFilter = 'all', 
       const wasFinancialDataEdited = wasServiceValueEdited || wasTravelFeeEdited
 
       // Calcular novo valor total do atendimento
-      // Para valores personalizados, o total é apenas o valor do serviço (sem taxa)
-      const isCustomPrice = wasFinancialDataEdited ? true : editingAppointment.is_custom_price || false
-      const newTotalAppointment = isCustomPrice ? 
-        editForm.payment_total_service : 
-        (editForm.payment_total_service + editForm.travel_fee)
+      const newTotalAppointment = editForm.payment_total_service + editForm.travel_fee
 
       const { error } = await supabase
         .from('appointments')
@@ -295,14 +289,11 @@ export default function AppointmentsPage({ user, onBack, initialFilter = 'all', 
           scheduled_date: editForm.scheduled_date || null,
           scheduled_time: editForm.scheduled_time || null,
           notes: editForm.notes || null,
-          payment_status: updatedPaymentStatus,
-          total_received: updatedTotalReceived,
+          total_amount_paid: updatedTotalPaid,
           payment_total_service: editForm.payment_total_service,
           travel_fee: editForm.travel_fee,
           payment_total_appointment: newTotalAppointment,
-          is_custom_price: wasFinancialDataEdited ? true : editingAppointment.is_custom_price || false,
-          last_edited_at: new Date().toISOString(),
-          edited_by: user.id
+          is_custom_price: wasFinancialDataEdited ? true : editingAppointment.is_custom_price || false
         })
         .eq('id', editingAppointment.id)
         .eq('user_id', user.id)
@@ -813,30 +804,31 @@ ${appointment.notes ? `📝 *Observações:* ${appointment.notes}` : ''}
                               </>
                             )}
 
-                            {/* Entrada Paga */}
-                            {appointment.payment_down_payment_paid !== undefined && 
-                             appointment.payment_down_payment_paid > 0 && (
+                            {/* Total Já Pago e Restante */}
+                            {appointment.total_amount_paid > 0 && (
                               <div className="flex items-center justify-between text-sm pt-2 border-t border-green-200">
                                 <span className="text-gray-600 flex items-center">
                                   <span className="mr-2">💰</span>
-                                  Entrada Paga:
+                                  Pago:
                                 </span>
-                                <span className="text-blue-700 font-bold">
-                                  R$ {appointment.payment_down_payment_paid.toFixed(2)}
+                                <span className="text-green-600 font-bold">
+                                  {PaymentService.formatCurrency(PaymentService.getTotalPaid(appointment))}
+                                  <span className="text-gray-500 ml-1">
+                                    / {PaymentService.formatCurrency(PaymentService.getTotalAmount(appointment))}
+                                  </span>
                                 </span>
                               </div>
                             )}
 
-                            {/* Total Já Pago */}
-                            {appointment.total_amount_paid !== undefined && 
-                             appointment.total_amount_paid > 0 && (
+                            {/* Valor Restante */}
+                            {PaymentService.getRemainingAmount(appointment) > 0 && (
                               <div className="flex items-center justify-between text-sm">
                                 <span className="text-gray-600 flex items-center">
-                                  <span className="mr-2">✅</span>
-                                  Total Já Pago:
+                                  <span className="mr-2">📌</span>
+                                  Restante:
                                 </span>
-                                <span className="text-green-600 font-bold">
-                                  R$ {appointment.total_amount_paid.toFixed(2)}
+                                <span className="text-orange-600 font-bold">
+                                  {PaymentService.formatCurrency(PaymentService.getRemainingAmount(appointment))}
                                 </span>
                               </div>
                             )}
@@ -1107,8 +1099,8 @@ ${appointment.notes ? `📝 *Observações:* ${appointment.notes}` : ''}
                       <input
                         type="number"
                         step="10"
-                        value={editForm.total_received}
-                        onChange={(e) => setEditForm({...editForm, total_received: parseFloat(e.target.value) || 0})}
+                        value={editForm.total_amount_paid}
+                        onChange={(e) => setEditForm({...editForm, total_amount_paid: parseFloat(e.target.value) || 0})}
                         className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white text-gray-900 font-medium"
                         placeholder="0.00"
                       />
@@ -1117,7 +1109,9 @@ ${appointment.notes ? `📝 *Observações:* ${appointment.notes}` : ''}
                     <div className="mt-3 flex justify-between items-center bg-gradient-to-r from-amber-50 to-orange-50 p-3 rounded-lg border border-amber-200">
                       <span className="text-sm font-semibold text-gray-700">💳 Valor Pendente:</span>
                       <span className="text-lg font-bold text-orange-600">
-                        R$ {((editForm.payment_total_service + editForm.travel_fee) - editForm.total_received).toFixed(2)}
+                        {PaymentService.formatCurrency(
+                          (editForm.payment_total_service + editForm.travel_fee) - editForm.total_amount_paid
+                        )}
                       </span>
                     </div>
                   </div>

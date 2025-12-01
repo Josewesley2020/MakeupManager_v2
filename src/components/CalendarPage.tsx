@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { supabase, formatDuration, formatDate, formatDateTime } from '../lib/supabase'
+import PaymentService from '../lib/PaymentService'
 import { Container } from './Container'
 
 interface CalendarPageProps {
@@ -20,8 +21,6 @@ interface CalendarAppointment {
   payment_total_service: number | null
   travel_fee: number | null
   payment_total_appointment: number | null
-  payment_down_payment_paid: number | null
-  payment_down_payment_expected: number | null
   total_amount_paid: number | null
   is_custom_price: boolean | null
   payment_status: 'pending' | 'paid' | null
@@ -76,8 +75,6 @@ export default function CalendarPage({ user, onBack, onCreateAppointment }: Cale
           payment_total_service,
           travel_fee,
           payment_total_appointment,
-          payment_down_payment_paid,
-          payment_down_payment_expected,
           total_amount_paid,
           is_custom_price,
           payment_status,

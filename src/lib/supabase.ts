@@ -1,12 +1,29 @@
 import { createClient } from '@supabase/supabase-js'
 
-// Configurações do Supabase com fallback para GitHub Pages
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://rpjuaileygcrlcekxseo.supabase.co'
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJwanVhaWxleWdjcmxjZWt4c2VvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzNzA1MDYsImV4cCI6MjA3NDk0NjUwNn0.mVZAjPBdLGWKvxzmIi5aCaUuXgVV8Hnmi34ZsBrVGbw'
+// ============================================
+// CONFIGURAÇÃO SUPABASE V2
+// ============================================
+// Em desenvolvimento: usar variáveis de ambiente (.env.local)
+// Em produção (GitHub Pages): usar valores fixos
 
-// Debug para verificar se as variáveis estão sendo carregadas
-console.log('Supabase URL:', supabaseUrl)
-console.log('Supabase Key exists:', !!supabaseAnonKey)
+const isDevelopment = import.meta.env.MODE === 'development'
+
+const supabaseUrl = isDevelopment 
+  ? import.meta.env.VITE_SUPABASE_URL 
+  : (import.meta.env.VITE_SUPABASE_URL || 'https://criawfiupggpgmxljndc.supabase.co')
+
+const supabaseAnonKey = isDevelopment
+  ? import.meta.env.VITE_SUPABASE_ANON_KEY
+  : (import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNyaWF3Zml1cGdncGdteGxqbmRjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ2MjU1NjAsImV4cCI6MjA4MDIwMTU2MH0.DY7q4QwEUx45_memx0jxDwLj72oe5ZNGFoiu6UEDHEY')
+
+// Debug (apenas em desenvolvimento)
+if (isDevelopment) {
+  console.log('🔧 Supabase Config (Dev):', {
+    url: supabaseUrl,
+    keyExists: !!supabaseAnonKey,
+    mode: import.meta.env.MODE
+  })
+}
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables')
