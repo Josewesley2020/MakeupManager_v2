@@ -80,6 +80,9 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
   const [knownClients, setKnownClients] = useState<Array<{id:string,name:string,phone?:string}>>([])
   const [clientsLoading, setClientsLoading] = useState(false)
   const [clientsError, setClientsError] = useState<string | null>(null)
+  
+  // Cache do perfil do usuário (carregado uma vez)
+  const [userProfile, setUserProfile] = useState<{full_name?: string, instagram?: string} | null>(null)
 
   useEffect(() => {
     let mounted = true
@@ -88,17 +91,42 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
       
       setClientsLoading(true)
       setClientsError(null)
+      
       try {
-        let query = supabase.from('clients').select('id,name,phone,address,instagram').order('created_at', { ascending: false })
-        query = query.eq('user_id', user.id)
-        const { data, error } = await query
+        // Carregar clientes E perfil em PARALELO (otimização)
+        const [clientsResult, profileResult] = await Promise.all([
+          supabase
+            .from('clients')
+            .select('id,name,phone,address,instagram')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false }),
+          
+          supabase
+            .from('profiles')
+            .select('full_name,instagram') // Apenas campos necessários
+            .eq('id', user.id)
+            .single()
+        ])
 
-        if (error) throw error
-        if (mounted && data) {
-          setKnownClients(data.map((c: any) => ({ id: c.id, name: c.name, phone: c.phone, address: c.address, instagram: c.instagram })))
+        if (mounted) {
+          if (clientsResult.data) {
+            setKnownClients(clientsResult.data.map((c: any) => ({ 
+              id: c.id, 
+              name: c.name, 
+              phone: c.phone, 
+              address: c.address, 
+              instagram: c.instagram 
+            })))
+          }
+          
+          if (profileResult.data) {
+            setUserProfile(profileResult.data)
+          }
+          
+          if (clientsResult.error) throw clientsResult.error
         }
       } catch (err: any) {
-        console.warn('Erro carregando clients do Supabase', err)
+        console.warn('Erro carregando dados do Supabase', err)
         setClientsError(err.message || String(err))
       } finally {
         setClientsLoading(false)
@@ -281,22 +309,7 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
     const formatCurrency = (value: number) =>
       value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 
-    // Carregar informações do perfil do usuário
-    let userProfile = null
-    try {
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single()
-
-      if (profileData) {
-        userProfile = profileData
-      }
-    } catch (error) {
-      console.warn('Erro ao carregar perfil do usuário:', error)
-    }
-
+    // Usar perfil do cache (já carregado no useEffect inicial)
     const lines: string[] = []
     lines.push('💄 *ORÇAMENTO PERSONALIZADO*')
     lines.push('✨ Produção de Beleza Profissional')
@@ -556,71 +569,30 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
     setIsCreatingAppointment(true)
 
     try {
-      // 1. Verificar se o cliente existe, se não existir, criar
-      let clientId = knownClients.find(c => c.name === clientName)?.id
+      // 1. Identificar cliente existente ou deixar RPC criar novo
+      const clientId = knownClients.find(c => c.name === clientName)?.id || null
 
-      if (!clientId) {
-        // Criar novo cliente
-        const { data: newClient, error: clientError } = await supabase
-          .from('clients')
-          .insert({
-            user_id: user.id,
-            name: clientName,
-            phone: clientPhone,
-            address: appointmentAddress || null
-          })
-          .select('id')
-          .single()
-
-        if (clientError) throw clientError
-        clientId = newClient.id
-      }
-
-      // 2. Verificar se já existe um agendamento duplicado
-      const duplicateCheckQuery = supabase
-        .from('appointments')
-        .select(`
-          id,
-          appointment_services (
-            service_id,
-            quantity
-          )
-        `)
-        .eq('user_id', user.id)
-        .eq('client_id', clientId)
-        .eq('service_area_id', selectedArea)
-
-      // Para agendamentos confirmados, verificar data e horário
-      if (isAppointmentConfirmed) {
-        duplicateCheckQuery
-          .eq('scheduled_date', appointmentDate)
-          .eq('scheduled_time', appointmentTime)
-      }
-
-      const { data: existingAppointments, error: checkError } = await duplicateCheckQuery
-
-      if (checkError) throw checkError
-
-      // Verificar se algum agendamento existente tem os mesmos serviços (apenas se não for valor manual)
-      if (existingAppointments && existingAppointments.length > 0 && !useManualPrice) {
-        for (const existingAppointment of existingAppointments) {
-          const existingServices = existingAppointment.appointment_services || []
-          
-          // Verificar se tem a mesma quantidade de serviços
-          if (existingServices.length === calculatedPrices.services.length) {
-            // Verificar se todos os serviços são iguais (mesmo ID e quantidade)
-            const servicesMatch = calculatedPrices.services.every(newService => {
-              return existingServices.some(existingService => 
-                existingService.service_id === newService.serviceId && 
-                existingService.quantity === newService.quantity
-              )
-            })
-
-            if (servicesMatch) {
-              alert('⚠️ Agendamento duplicado detectado!\n\nJá existe um agendamento idêntico para este cliente com os mesmos serviços, data e horário.')
-              return
-            }
+      // 2. Verificar se já existe um agendamento duplicado (usando RPC otimizada)
+      if (isAppointmentConfirmed && !useManualPrice) {
+        const serviceIds = calculatedPrices.services.map(s => s.serviceId)
+        
+        const { data: isDuplicate, error: checkError } = await supabase.rpc(
+          'check_duplicate_appointment',
+          {
+            p_user_id: user.id,
+            p_client_id: clientId,
+            p_service_area_id: selectedArea,
+            p_scheduled_date: appointmentDate,
+            p_scheduled_time: appointmentTime,
+            p_service_ids: serviceIds
           }
+        )
+
+        if (checkError) throw checkError
+
+        if (isDuplicate) {
+          alert('⚠️ Agendamento duplicado detectado!\n\nJá existe um agendamento idêntico para este cliente com os mesmos serviços, data e horário.')
+          return
         }
       }
 
@@ -658,56 +630,48 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
         }
       }
 
-      // 4. Criar o agendamento
-      const { data: appointment, error: appointmentError } = await supabase
-        .from('appointments')
-        .insert({
-          user_id: user.id,
-          client_id: clientId,
-          service_area_id: selectedArea,
-          scheduled_date: isAppointmentConfirmed ? appointmentDate : null,
-          scheduled_time: isAppointmentConfirmed ? appointmentTime : null,
-          status: isAppointmentConfirmed ? 'confirmed' : 'pending',
-          appointment_address: appointmentAddress || null,
+      // 3. Criar agendamento completo usando RPC transacional
+      const { data: result, error: createError } = await supabase.rpc(
+        'create_appointment_with_services',
+        {
+          p_user_id: user.id,
+          p_client_data: {
+            id: clientId || '',
+            name: clientName,
+            phone: clientPhone,
+            address: appointmentAddress || null
+          },
+          p_appointment_data: {
+            service_area_id: selectedArea,
+            scheduled_date: isAppointmentConfirmed ? appointmentDate : null,
+            scheduled_time: isAppointmentConfirmed ? appointmentTime : null,
+            status: isAppointmentConfirmed ? 'confirmed' : 'pending',
+            appointment_address: appointmentAddress || null,
+            payment_total_service: servicesOnlyValue,
+            travel_fee: travelFee,
+            payment_total_appointment: totalAppointmentValue,
+            payment_status: finalPaymentStatus,
+            total_amount_paid: downPaymentPaid,
+            is_custom_price: useManualPrice,
+            total_duration_minutes: totalDurationMinutes,
+            whatsapp_sent: false,
+            notes: useManualPrice ?
+              `Valor diferenciado: R$ ${parseFloat(manualPrice.replace(',', '.')).toFixed(2)}` :
+              `${calculatedPrices.services.length} serviço(s)`
+          },
+          p_services: calculatedPrices.services.map(service => ({
+            service_id: service.serviceId,
+            quantity: service.quantity,
+            unit_price: service.unitPrice,
+            total_price: service.totalPrice
+          }))
+        }
+      )
 
-          // Campos de pagamento
-          payment_total_service: servicesOnlyValue, // Valor apenas dos serviços
-          travel_fee: travelFee, // Taxa de deslocamento
-          payment_total_appointment: totalAppointmentValue, // Valor total (serviços + taxa)
-          payment_status: finalPaymentStatus,
-          total_amount_paid: downPaymentPaid, // Novo campo - valor já pago
-          is_custom_price: useManualPrice, // Indica se foi usado valor diferenciado
+      if (createError) throw createError
+      if (!result || !result.success) throw new Error('Falha ao criar agendamento')
 
-          // Tempo total do atendimento
-          total_duration_minutes: totalDurationMinutes,
-
-          notes: useManualPrice ?
-            `Valor diferenciado: R$ ${parseFloat(manualPrice.replace(',', '.')).toFixed(2)}` :
-            `${calculatedPrices.services.length} serviço(s)`
-        })
-        .select('id')
-        .single()
-
-      if (appointmentError) throw appointmentError
-
-      // 5. Inserir os serviços do agendamento (sempre, independente do tipo de preço)
-      if (calculatedPrices.services.length > 0) {
-        const appointmentServicesData = calculatedPrices.services.map(service => ({
-          appointment_id: appointment.id,
-          service_id: service.serviceId,
-          quantity: service.quantity,
-          unit_price: service.unitPrice,
-          total_price: service.totalPrice
-        }))
-
-        const { error: servicesError } = await supabase
-          .from('appointment_services')
-          .insert(appointmentServicesData)
-
-        if (servicesError) throw servicesError
-      }
-
-      // 6. Sucesso - fechar modal e limpar dados
+      // 4. Sucesso - fechar modal e limpar dados
       alert(`✅ Agendamento ${isAppointmentConfirmed ? 'confirmado' : 'criado'} com sucesso!${useManualPrice ? ' (Valor diferenciado aplicado)' : ''}`)
       
       setShowAppointmentModal(false)
