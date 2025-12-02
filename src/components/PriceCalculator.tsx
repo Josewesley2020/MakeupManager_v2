@@ -26,16 +26,9 @@ interface ServiceArea {
   travel_fee: number
 }
 
-interface RegionalPrice {
-  service_id: string
-  service_area_id: string
-  price: number
-}
-
 export function PriceCalculator({ user, initialDate, initialTime, initialStatus, onBackToCalendar }: PriceCalculatorProps) {
   const [services, setServices] = useState<Service[]>([])
   const [areas, setAreas] = useState<ServiceArea[]>([])
-  const [regionalPrices, setRegionalPrices] = useState<RegionalPrice[]>([])
   
   const [selectedService, setSelectedService] = useState('')
   const [selectedArea, setSelectedArea] = useState('')
@@ -177,8 +170,11 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
       setAppointmentDate(initialDate)
     }
     if (initialTime) {
-      // Apenas setar appointmentTime - o useEffect abaixo vai cuidar de splittar em hour/minute
+      // Setar appointmentTime E splittar nos campos de hora/minuto
       setAppointmentTime(initialTime)
+      const [hour, minute] = initialTime.split(':')
+      setAppointmentHour(hour || '')
+      setAppointmentMinute(minute || '')
     }
     if (initialStatus === 'confirmed') {
       setIsAppointmentConfirmed(true)
@@ -219,16 +215,6 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
       if (areasData) {
         setAreas(areasData)
       }
-
-      // Carregar preços regionais
-      const { data: regionalPricesData } = await supabase
-        .from('service_regional_prices')
-        .select('service_id, service_area_id, price')
-        .eq('user_id', user.id)
-
-      if (regionalPricesData) {
-        setRegionalPrices(regionalPricesData)
-      }
     } catch (error) {
       console.error('Error loading data:', error)
     }
@@ -247,11 +233,7 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
     // Recalcular preços de todos os serviços
     const updatedServices = appointmentServices.map(service => {
       const serviceInfo = services.find(s => s.id === service.serviceId)
-      const regionalPrice = regionalPrices.find(
-        rp => rp.service_id === service.serviceId && rp.service_area_id === selectedArea
-      )
-
-      const unitPrice = regionalPrice ? regionalPrice.price : (serviceInfo?.price || 0)
+      const unitPrice = serviceInfo?.price || 0
       const totalPrice = unitPrice * service.quantity
 
       return {
@@ -264,13 +246,10 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
     // Calcular total
     const servicesTotal = updatedServices.reduce((sum, service) => sum + service.totalPrice, 0)
     const area = areas.find(a => a.id === selectedArea)
-    const hasAnyRegionalPrice = updatedServices.some(service =>
-      regionalPrices.some(rp => rp.service_id === service.serviceId && rp.service_area_id === selectedArea)
-    )
 
     let finalPrice = servicesTotal
 
-    // Taxa de deslocamento (opcional - pode ser adicionada mesmo com preço regional)
+    // Taxa de deslocamento (opcional)
     if (includeTravelFee && area && area.travel_fee > 0) {
       finalPrice += area.travel_fee
     }
@@ -280,7 +259,7 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
       servicesTotal,
       totalWithTravel: finalPrice
     }
-  }, [appointmentServices, selectedArea, services, areas, regionalPrices, includeTravelFee])
+  }, [appointmentServices, selectedArea, services, areas, includeTravelFee])
 
   // Definir automaticamente 30% do valor total quando confirmar agendamento
   useEffect(() => {
@@ -289,36 +268,24 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
         parseFloat(manualPrice.replace(',', '.')) : 
         calculatedPrices.services.reduce((sum, service) => sum + service.totalPrice, 0)
       const area = areas.find(a => a.id === selectedArea)
-      const hasAnyRegionalPrice = calculatedPrices.services.some(service =>
-        regionalPrices.some(rp => rp.service_id === service.serviceId && rp.service_area_id === selectedArea)
-      )
       const travelFee = includeTravelFee && area ? area.travel_fee : 0
       const finalTotal = useManualPrice && manualPrice ? totalValue : totalValue + travelFee
       const thirtyPercent = (finalTotal * 0.3).toFixed(2)
       setDownPaymentAmount(thirtyPercent)
     }
-  }, [isAppointmentConfirmed, calculatedPrices, selectedArea, areas, regionalPrices, includeTravelFee, useManualPrice, manualPrice])
+  }, [isAppointmentConfirmed, calculatedPrices, selectedArea, areas, includeTravelFee, useManualPrice, manualPrice])
 
-  // Sincronizar hora e minuto com appointmentTime
+  // Atualizar appointmentTime quando hora ou minuto mudam (usuário digitando)
   useEffect(() => {
-    if (appointmentTime) {
-      const [hour, minute] = appointmentTime.split(':')
-      setAppointmentHour(hour || '')
-      setAppointmentMinute(minute || '')
-    } else {
-      setAppointmentHour('')
-      setAppointmentMinute('')
-    }
-  }, [appointmentTime])
-
-  // Atualizar appointmentTime quando hora ou minuto mudam
-  useEffect(() => {
-    if (appointmentHour && appointmentMinute) {
-      setAppointmentTime(`${appointmentHour}:${appointmentMinute}`)
-    } else if (appointmentHour) {
-      setAppointmentTime(`${appointmentHour}:00`)
-    } else {
-      setAppointmentTime('')
+    // Prevenir loop: só atualizar se os valores realmente mudaram
+    const expectedTime = appointmentHour && appointmentMinute 
+      ? `${appointmentHour}:${appointmentMinute}`
+      : appointmentHour 
+        ? `${appointmentHour}:00` 
+        : ''
+    
+    if (appointmentTime !== expectedTime) {
+      setAppointmentTime(expectedTime)
     }
   }, [appointmentHour, appointmentMinute])
 
@@ -358,9 +325,6 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
     }
 
     const area = areas.find(a => a.id === selectedArea)
-    const hasAnyRegionalPrice = calculatedPrices.services.some(service =>
-      regionalPrices.some(rp => rp.service_id === service.serviceId && rp.service_area_id === selectedArea)
-    )
 
     const formatCurrency = (value: number) =>
       value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -431,10 +395,6 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
         lines.push(`• *Total geral*: *R$ ${finalTotal.toFixed(2)}* (taxa de deslocamento foi descontada - R$ ${area.travel_fee.toFixed(2)})`)
       } else {
         lines.push(`• *Total geral*: *R$ ${finalTotal.toFixed(2)}*`)
-      }
-
-      if (hasAnyRegionalPrice) {
-        lines.push('• Preços regionais já incluem deslocamento e materiais extras.')
       }
     }
 
@@ -599,10 +559,7 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
     const service = services.find(s => s.id === serviceId)
     if (!service) return
 
-    const regionalPrice = regionalPrices.find(
-      rp => rp.service_id === serviceId && rp.service_area_id === selectedArea
-    )
-    const unitPrice = regionalPrice ? regionalPrice.price : service.price
+    const unitPrice = service.price
     const totalPrice = unitPrice * quantity
 
     setAppointmentServices(prev => [...prev, {
@@ -1036,10 +993,7 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
                           {categoryServices.map((service) => {
                             const isSelected = appointmentServices.some(s => s.serviceId === service.id)
                             const selectedService = appointmentServices.find(s => s.serviceId === service.id)
-                            const regionalPrice = regionalPrices.find(
-                              rp => rp.service_id === service.id && rp.service_area_id === selectedArea
-                            )
-                            const displayPrice = regionalPrice ? regionalPrice.price : service.price
+                            const displayPrice = service.price
 
                             return (
                               <div key={service.id} className="p-2 sm:p-3 rounded-lg hover:bg-gray-50 transition-colors">
@@ -1051,7 +1005,7 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
                                     onChange={(e) => {
                                       if (e.target.checked) {
                                         // Adicionar serviço
-                                        const unitPrice = regionalPrice ? regionalPrice.price : service.price
+                                        const unitPrice = service.price
                                         setAppointmentServices(prev => [...prev, {
                                           serviceId: service.id,
                                           quantity: 1,
@@ -1075,9 +1029,6 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
                                     </label>
                                     <div className="text-sm sm:text-base font-semibold text-gray-800 flex items-center space-x-1 flex-shrink-0 ml-1 mr-2">
                                       <span>R$ {displayPrice.toFixed(2)}</span>
-                                      {regionalPrice && (
-                                        <span className="text-blue-600 font-medium text-sm">⭐</span>
-                                      )}
                                     </div>
                                   </div>
                                 </div>
@@ -1091,7 +1042,7 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
                                           const currentQuantity = selectedService?.quantity || 1
                                           if (currentQuantity > 1) {
                                             const newQuantity = currentQuantity - 1
-                                            const unitPrice = regionalPrice ? regionalPrice.price : service.price
+                                            const unitPrice = service.price
                                             setAppointmentServices(prev => prev.map(s =>
                                               s.serviceId === service.id
                                                 ? { ...s, quantity: newQuantity, totalPrice: unitPrice * newQuantity }
@@ -1109,7 +1060,7 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
                                         value={selectedService?.quantity || 1}
                                         onChange={(e) => {
                                           const newQuantity = parseInt(e.target.value) || 1
-                                          const unitPrice = regionalPrice ? regionalPrice.price : service.price
+                                          const unitPrice = service.price
                                           setAppointmentServices(prev => prev.map(s =>
                                             s.serviceId === service.id
                                               ? { ...s, quantity: newQuantity, totalPrice: unitPrice * newQuantity }
@@ -1122,7 +1073,7 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
                                         onClick={() => {
                                           const currentQuantity = selectedService?.quantity || 1
                                           const newQuantity = currentQuantity + 1
-                                          const unitPrice = regionalPrice ? regionalPrice.price : service.price
+                                          const unitPrice = service.price
                                           setAppointmentServices(prev => prev.map(s =>
                                             s.serviceId === service.id
                                               ? { ...s, quantity: newQuantity, totalPrice: unitPrice * newQuantity }
@@ -1158,9 +1109,6 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
             {/* Taxa de Deslocamento */}
             {(() => {
               const area = areas.find(a => a.id === selectedArea)
-              const hasAnyRegionalPrice = calculatedPrices.services.some(service =>
-                regionalPrices.some(rp => rp.service_id === service.serviceId && rp.service_area_id === selectedArea)
-              )
 
               return area && area.travel_fee > 0 && (
                 <div className="flex items-center space-x-3 p-3 bg-orange-50 rounded-lg border border-orange-200">
@@ -1180,9 +1128,6 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
 
             {(() => {
               const area = areas.find(a => a.id === selectedArea)
-              const hasAnyRegionalPrice = calculatedPrices.services.some(service =>
-                regionalPrices.some(rp => rp.service_id === service.serviceId && rp.service_area_id === selectedArea)
-              )
               return !(area && area.travel_fee > 0) && (
                 <div className="text-sm text-gray-500 italic">
                   Nenhuma opção adicional disponível para esta combinação de serviços e região.
@@ -1203,12 +1148,7 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
               <div className="space-y-3">
                 {calculatedPrices.services.map((service, index) => {
                   const serviceInfo = services.find(s => s.id === service.serviceId)
-                  const area = areas.find(a => a.id === selectedArea)
-                  const regionalPrice = regionalPrices.find(
-                    rp => rp.service_id === service.serviceId && rp.service_area_id === selectedArea
-                  )
-                  const isRegionalPrice = !!regionalPrice
-                  const unitPrice = regionalPrice ? regionalPrice.price : service.unitPrice
+                  const unitPrice = service.unitPrice
 
                   return (
                     <div key={index} className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
@@ -1217,11 +1157,6 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
                           <span className="font-semibold text-gray-800 text-lg">
                             {serviceInfo?.name} ({service.quantity}x)
                           </span>
-                          {isRegionalPrice && (
-                            <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
-                              ⭐ Preço Regional
-                            </span>
-                          )}
                         </div>
                         <span className="font-bold text-green-600 text-lg">
                           R$ {(unitPrice * service.quantity).toFixed(2)}
@@ -1233,12 +1168,6 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
                           <span>Preço unitário:</span>
                           <span>R$ {unitPrice.toFixed(2)}</span>
                         </div>
-                        {isRegionalPrice && (
-                          <div className="flex justify-between text-blue-600 mt-1">
-                            <span>Preço padrão:</span>
-                            <span className="line-through">R$ {service.unitPrice.toFixed(2)}</span>
-                          </div>
-                        )}
                       </div>
                     </div>
                   )
@@ -1285,19 +1214,6 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
 
             {/* Indicadores */}
             <div className="mt-4 space-y-2">
-              {/* Indicador de Preço Regional */}
-              {calculatedPrices.services.some(service =>
-                regionalPrices.some(rp => rp.service_id === service.serviceId && rp.service_area_id === selectedArea)
-              ) && (
-                <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                  <div className="text-sm text-blue-800">
-                    <strong>⭐ Preços regionais aplicados!</strong>
-                    <br />
-                    Alguns serviços têm preço especial para a região selecionada (inclui deslocamento).
-                  </div>
-                </div>
-              )}
-
               {/* Botões de Ação */}
               {clientName && clientPhone && (
                 <div className="mt-4 space-y-3">
@@ -1331,9 +1247,7 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
             <li>• <strong>Marque os checkboxes</strong> para selecionar serviços desejados</li>
             <li>• <strong>Ajuste as quantidades</strong> dos serviços selecionados</li>
             <li>• <strong>Preço Padrão:</strong> Valor base de cada serviço</li>
-            <li>• <strong>Preço Regional:</strong> Valor específico para determinada região (se cadastrado)</li>
-            <li>• <strong>Regra:</strong> Se existe preço regional, ele substitui completamente o preço padrão</li>
-            <li>• <strong>Taxa de Deslocamento:</strong> Pode ser adicionada opcionalmente, mesmo com preços regionais</li>
+            <li>• <strong>Taxa de Deslocamento:</strong> Pode ser adicionada opcionalmente ao valor total</li>
           </ul>
         </div>
       </div>
@@ -1543,10 +1457,6 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
                   <div className="space-y-2 max-h-32 sm:max-h-40 overflow-y-auto">
                     {calculatedPrices.services.map((service, index) => {
                       const serviceInfo = services.find(s => s.id === service.serviceId)
-                      const regionalPrice = regionalPrices.find(
-                        rp => rp.service_id === service.serviceId && rp.service_area_id === selectedArea
-                      )
-                      const isRegionalPrice = !!regionalPrice
 
                       return (
                         <div key={index} className="bg-white p-2 sm:p-3 rounded-lg sm:rounded-xl border border-gray-200 shadow-sm">
@@ -1555,11 +1465,6 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
                               <span className="font-semibold text-gray-900 text-xs sm:text-sm">
                                 {serviceInfo?.name} ({service.quantity}x)
                               </span>
-                              {isRegionalPrice && (
-                                <span className="ml-1 sm:ml-2 px-1 sm:px-2 py-0.5 sm:py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
-                                  ⭐ Regional
-                                </span>
-                              )}
                             </div>
                             <span className="font-bold text-green-600 text-xs sm:text-sm ml-2 sm:ml-3">
                               R$ {service.totalPrice.toFixed(2)}
