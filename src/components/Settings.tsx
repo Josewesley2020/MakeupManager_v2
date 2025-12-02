@@ -168,16 +168,6 @@ export function Settings({ user, onBack }: SettingsProps) {
         setNewServicePriceInput('')
         setNewServiceDurationInput('60')
       }
-
-      // Load regional prices
-      const { data: regionalPricesData } = await supabase
-        .from('service_regional_prices')
-        .select('*')
-        .eq('user_id', user.id)
-
-      if (regionalPricesData) {
-        setRegionalPrices(regionalPricesData)
-      }
     } catch (error) {
       console.error('Error loading user data:', error)
     } finally {
@@ -268,23 +258,6 @@ export function Settings({ user, onBack }: SettingsProps) {
         return
       }
 
-      // Verificar se a região está sendo usada em preços regionais
-      const { data: regionalPricesUsingArea, error: regionalCheckError } = await supabase
-        .from('service_regional_prices')
-        .select('id')
-        .eq('service_area_id', id)
-        .limit(1)
-
-      if (regionalCheckError) {
-        console.error('Erro ao verificar uso da região em preços:', regionalCheckError)
-        throw regionalCheckError
-      }
-
-      if (regionalPricesUsingArea && regionalPricesUsingArea.length > 0) {
-        alert('❌ Não é possível excluir esta região porque ela tem preços regionais configurados. Remova os preços regionais primeiro.')
-        return
-      }
-
       const { error } = await supabase
         .from('service_areas')
         .delete()
@@ -362,38 +335,8 @@ export function Settings({ user, onBack }: SettingsProps) {
   }
 
   const addRegionalPrice = async () => {
-    // require selection and valid input
-    const price = parseFloat(regionalPriceInput)
-    if (!selectedService || !selectedArea || !price || price <= 0) return
-    if (!regionalPriceValid) {
-      alert('Corrija o preço regional inválido antes de salvar.')
-      return
-    }
-
-    setLoading(true)
-    try {
-      const { error } = await supabase
-        .from('service_regional_prices')
-        .upsert([{
-          user_id: user.id,
-          service_id: selectedService,
-          service_area_id: selectedArea,
-          price
-        }])
-
-      if (error) throw error
-      
-  setSelectedService('')
-  setSelectedArea('')
-  setRegionalPrice(0)
-  setRegionalPriceInput('')
-      loadUserData()
-    } catch (error) {
-      console.error('Error adding regional price:', error)
-      alert('Erro ao adicionar preço regional')
-    } finally {
-      setLoading(false)
-    }
+    // Função desabilitada - preços regionais foram removidos na V2
+    alert('⚠️ Preços regionais não estão mais disponíveis. Configure o preço base do serviço e a taxa de deslocamento da região.')
   }
 
   const startEditingService = (service: Service) => {
@@ -459,29 +402,6 @@ export function Settings({ user, onBack }: SettingsProps) {
     }
   }
 
-  const removeRegionalPrice = async (id: string) => {
-    setLoading(true)
-    try {
-      console.log('Tentando remover preço regional com ID:', id)
-      const { error } = await supabase
-        .from('service_regional_prices')
-        .delete()
-        .eq('id', id)
-
-      if (error) {
-        console.error('Erro detalhado ao remover preço regional:', error)
-        throw error
-      }
-      console.log('Preço regional removido com sucesso')
-      loadUserData()
-    } catch (error: any) {
-      console.error('Error removing regional price:', error)
-      alert(`Erro ao remover preço regional: ${error.message}`)
-    } finally {
-      setLoading(false)
-    }
-  }
-
   const removeService = async (id: string) => {
     if (!window.confirm('Tem certeza que deseja excluir este serviço? Essa ação não pode ser desfeita.')) return
     setLoading(true)
@@ -489,28 +409,10 @@ export function Settings({ user, onBack }: SettingsProps) {
       console.log('Tentando remover serviço com ID:', id)
 
       // Verificar se o serviço está sendo usado em agendamentos FUTUROS
-      const today = new Date().toLocaleDateString('sv-SE') // Data de hoje no formato YYYY-MM-DD
-
-      const { data: futureAppointmentsUsingService, error: checkError } = await supabase
-        .from('appointment_services')
-        .select(`
-          appointment_id,
-          appointments!inner(scheduled_date)
-        `)
-        .eq('service_id', id)
-        .gte('appointments.scheduled_date', today) // Apenas agendamentos futuros ou hoje
-        .limit(1)
-
-      if (checkError) {
-        console.error('Erro ao verificar uso futuro do serviço:', checkError)
-        throw checkError
-      }
-
-      if (futureAppointmentsUsingService && futureAppointmentsUsingService.length > 0) {
-        alert('❌ Não é possível excluir este serviço porque ele está agendado para datas futuras. Cancele os agendamentos futuros que usam este serviço antes de excluí-lo.')
-        return
-      }
-
+  const removeRegionalPrice = async (id: string) => {
+    // Função desabilitada - preços regionais foram removidos na V2
+    alert('⚠️ Preços regionais não estão mais disponíveis na versão 2.')
+  }
       // Verificar se há agendamentos passados (apenas para informar ao usuário)
       const { data: pastAppointmentsUsingService, error: pastCheckError } = await supabase
         .from('appointment_services')
@@ -726,16 +628,6 @@ export function Settings({ user, onBack }: SettingsProps) {
               }`}
             >
               💄 Serviços
-            </button>
-            <button
-              onClick={() => setActiveTab('regional-prices')}
-              className={`py-2 px-3 rounded-md text-sm font-medium transition-colors ${
-                activeTab === 'regional-prices'
-                  ? 'bg-white text-pink-600 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-800'
-              }`}
-            >
-              💰 Preços
             </button>
           </div>
         </div>
@@ -1252,153 +1144,7 @@ export function Settings({ user, onBack }: SettingsProps) {
           </div>
         )}
 
-        {/* Regional Prices Tab */}
-        {activeTab === 'regional-prices' && (
-          <div className="space-y-4">
-            {/* Add New Regional Price */}
-            {getAllServices().length > 0 && serviceAreas.length > 0 && (
-              <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-xl">
-                <h2 className="text-lg font-semibold text-gray-800 mb-4">
-                  💰 Preço Regional (Substitui o Preço Padrão)
-                </h2>
-                
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Serviço
-                    </label>
-                    <select
-                      value={selectedService}
-                      onChange={(e) => setSelectedService(e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                    >
-                      <option value="">Selecione um serviço</option>
-                      {categories.map((category) => (
-                        <optgroup key={category.id} label={category.name}>
-                          {category.services?.map((service) => (
-                            <option key={service.id} value={service.id}>
-                              {service.name} (Padrão: R$ {service.price.toFixed(2)})
-                            </option>
-                          ))}
-                        </optgroup>
-                      ))}
-                    </select>
-                  </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Região
-                    </label>
-                    <select
-                      value={selectedArea}
-                      onChange={(e) => setSelectedArea(e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                    >
-                      <option value="">Selecione uma região</option>
-                      {serviceAreas.map((area) => (
-                        <option key={area.id} value={area.id}>
-                          {area.name} (Taxa: R$ {area.travel_fee.toFixed(2)})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Preço para esta Região (R$)
-                    </label>
-                    <NumericInput
-                      value={regionalPriceInput}
-                      onChange={setRegionalPriceInput}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                      placeholder="Ex: 250.00"
-                      decimalPlaces={2}
-                      allowComma={true}
-                      min={0}
-                      formatCurrency={true}
-                      currency={'BRL'}
-                      locale={'pt-BR'}
-                      onValidate={(valid) => setRegionalPriceValid(valid)}
-                    />
-                    {!regionalPriceValid && (
-                      <p className="text-xs text-red-600 mt-1">Preço regional inválido.</p>
-                    )}
-                    <p className="text-xs text-gray-500 mt-1">
-                      Este preço irá <strong>substituir</strong> o preço padrão do serviço nesta região
-                    </p>
-                  </div>
-
-                  <button
-                    onClick={addRegionalPrice}
-                    disabled={
-                      loading ||
-                      !selectedService ||
-                      !selectedArea ||
-                      !regionalPriceValid ||
-                      (parseFloat((regionalPriceInput || '').toString().replace(',', '.')) || 0) <= 0
-                    }
-                    className="w-full py-3 px-4 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
-                  >
-                    {loading ? 'Salvando...' : '💰 Definir Preço para Região'}
-                  </button>
-                  
-                  <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <p className="text-sm text-yellow-800">
-                      <strong>💡 Como funciona:</strong> O preço regional <strong>substitui completamente</strong> o preço padrão. 
-                      Se não definir preço regional, será usado o preço padrão do serviço.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Existing Regional Prices */}
-            <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-xl">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">
-                📋 Preços por Região
-              </h2>
-              
-              {regionalPrices.length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-gray-500 mb-4">
-                    Nenhum preço regional definido ainda
-                  </p>
-                  {(getAllServices().length === 0 || serviceAreas.length === 0) && (
-                    <p className="text-sm text-gray-400">
-                      {getAllServices().length === 0 && "Cadastre serviços primeiro"}
-                      {getAllServices().length === 0 && serviceAreas.length === 0 && " e "}
-                      {serviceAreas.length === 0 && "Cadastre regiões primeiro"}
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {regionalPrices.map((regionalPrice) => (
-                    <div key={regionalPrice.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                      <div>
-                        <div className="font-medium text-gray-800">
-                          {getServiceName(regionalPrice.service_id)}
-                        </div>
-                        <div className="text-sm text-gray-600">
-                          Região: {getAreaName(regionalPrice.service_area_id)}
-                        </div>
-                        <div className="text-lg font-semibold text-green-600">
-                          R$ {regionalPrice.price.toFixed(2)}
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => removeRegionalPrice(regionalPrice.id)}
-                        className="text-red-500 hover:text-red-700 p-2"
-                      >
-                        🗑️
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
         
       </Container>
     </div>
