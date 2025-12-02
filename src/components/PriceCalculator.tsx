@@ -422,7 +422,6 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
 
     if (useManualPrice && manualPrice) {
       lines.push(`• *Valor personalizado do atendimento: R$ ${finalTotal.toFixed(2)}*`)
-      lines.push('• Ajustado conforme necessidades específicas do evento.')
     } else {
       // lines.push(`• Subtotal dos serviços: ${formatCurrency(servicesTotal)}`)
       if (travelFeeValue && travelFeeValue > 0) {
