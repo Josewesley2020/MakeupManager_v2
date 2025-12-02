@@ -6,7 +6,6 @@ import { Settings } from './Settings'
 import { PriceCalculator } from './PriceCalculator'
 import ClientsPage from './ClientsPage'
 import AppointmentsPage from './AppointmentsPage'
-import { PDFManager } from './PDFManager'
 import CalendarPage from './CalendarPage'
 import FinancialDashboard from './FinancialDashboard'
 import { Container } from './Container'
@@ -19,7 +18,7 @@ interface DashboardProps {
 export function Dashboard({ user, onLogout }: DashboardProps) {
   const [phoneNumber, setPhoneNumber] = useState('')
   const [message, setMessage] = useState('')
-  const [currentView, setCurrentView] = useState<'dashboard' | 'settings' | 'calculator' | 'clients' | 'appointments' | 'pdfs' | 'calendar' | 'financial'>('dashboard')
+  const [currentView, setCurrentView] = useState<'dashboard' | 'settings' | 'calculator' | 'clients' | 'appointments' | 'calendar' | 'financial'>('dashboard')
   
   // Estados para dados do agendamento rápido (vindo do calendário)
   const [quickAppointmentData, setQuickAppointmentData] = useState<{
@@ -323,30 +322,6 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
     />
   }
 
-  if (currentView === 'pdfs') {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50 py-4">
-        <Container className="space-y-4">
-          <div className="bg-gradient-to-r from-purple-500 to-pink-600 text-white p-4 rounded-2xl shadow-xl">
-            <div className="flex items-center justify-between">
-              <button
-                onClick={() => setCurrentView('dashboard')}
-                className="text-purple-100 hover:text-white transition-colors"
-              >
-                ← Voltar
-              </button>
-              <h1 className="text-xl font-bold">
-                📄 Documentos
-              </h1>
-              <div></div>
-            </div>
-          </div>
-          <PDFManager user={user} />
-        </Container>
-      </div>
-    )
-  }
-
   if (currentView === 'calendar') {
     return <CalendarPage 
       onBack={() => setCurrentView('dashboard')} 
@@ -404,13 +379,6 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
           >
             <div className="text-2xl mb-1">👥</div>
             <div className="text-xs font-semibold">Clientes</div>
-          </button>
-          <button
-            onClick={() => setCurrentView('pdfs')}
-            className="bg-gradient-to-br from-purple-400 to-pink-600 text-white p-3 rounded-xl shadow-lg active:scale-95 transition-transform"
-          >
-            <div className="text-2xl mb-1">📄</div>
-            <div className="text-xs font-semibold">Documentos</div>
           </button>
           <button
             onClick={() => setCurrentView('appointments')}
