@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { supabase, formatDuration, formatDate, formatDateTime } from '../lib/supabase'
+import PaymentService from '../lib/PaymentService'
 import { WhatsAppButton } from './WhatsAppButton'
 import { Settings } from './Settings'
 import { PriceCalculator } from './PriceCalculator'
@@ -90,24 +91,8 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
 
       if (todayError) throw todayError
 
-      // Calcular receita de hoje (apenas o que falta receber)
-      const todayRevenue = todayAppointments?.reduce((total, appointment) => {
-        const totalServiceValue = appointment.appointment_services?.reduce((sum, service) => sum + service.total_price, 0) || 0
-        
-        // Se já foi pago totalmente, não conta na receita prevista
-        if (appointment.payment_status === 'paid') {
-          return total + 0
-        }
-        
-        // Se foi pago parcialmente, conta apenas o que falta receber
-        if (appointment.payment_status === 'partial') {
-          const remaining = (appointment.payment_total_service || totalServiceValue) - (appointment.total_received || 0)
-          return total + Math.max(0, remaining)
-        }
-        
-        // Se não foi pago ainda (pending ou null), conta o valor total
-        return total + totalServiceValue
-      }, 0) || 0
+      // Calcular receita pendente de hoje (o que falta receber)
+      const todayRevenue = PaymentService.calculateTotalPending(todayAppointments || [])
 
       // Buscar agendamentos pendentes
       const { data: pendingAppointments, error: pendingError } = await supabase
@@ -127,9 +112,7 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
 
       if (creditsError) throw creditsError
 
-      const credits = partialPayments?.reduce((total, appointment) => {
-        return total + (appointment.payment_total_service - appointment.total_received)
-      }, 0) || 0
+      const credits = PaymentService.calculateTotalPending(partialPayments || [])
 
       // Buscar agendamentos confirmados do mês
       const { data: confirmedAppointments, error: confirmedError } = await supabase
@@ -177,23 +160,8 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
 
       if (monthlyRevenueError) throw monthlyRevenueError
 
-      const monthlyRevenue = monthlyRevenueData?.reduce((total, appointment) => {
-        const totalServiceValue = appointment.appointment_services?.reduce((sum, service) => sum + service.total_price, 0) || 0
-        
-        // Se já foi pago totalmente, não conta na receita prevista
-        if (appointment.payment_status === 'paid') {
-          return total + 0
-        }
-        
-        // Se foi pago parcialmente, conta apenas o que falta receber
-        if (appointment.payment_status === 'partial') {
-          const remaining = (appointment.payment_total_service || totalServiceValue) - (appointment.total_received || 0)
-          return total + Math.max(0, remaining)
-        }
-        
-        // Se não foi pago ainda (pending ou null), conta o valor total
-        return total + totalServiceValue
-      }, 0) || 0
+      // Calcular receita mensal pendente
+      const monthlyRevenue = PaymentService.calculateTotalPending(monthlyRevenueData || [])
 
       // Buscar próximos agendamentos (próximos 5)
       const { data: upcomingAppointments, error: upcomingError } = await supabase
