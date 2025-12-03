@@ -91,7 +91,7 @@ export default defineConfig(({ mode }) => ({
         navigateFallbackDenylist: [/^\/auth/, /^\/api\/auth/]
       },
       devOptions: {
-        enabled: false // Desabilitar em dev para evitar conflitos
+        enabled: true // Habilitar em dev para testar PWA
       }
     })
   ],
