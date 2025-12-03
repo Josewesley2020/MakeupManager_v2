@@ -161,3 +161,98 @@ Após validar que tudo funciona:
    - Cache de services/categories no localStorage
    - Lazy loading de componentes grandes
    - Pagination para listagens longas
+
+---
+
+## 📁 Estrutura de Arquivos Database (Pós-Limpeza 02/12/2025)
+
+### ✅ Arquivos Essenciais Mantidos
+
+```
+database/
+├── 005-rpc-check-duplicate-appointment.sql ✅ OTIMIZAÇÃO
+│   └── RPC para verificação de duplicados (elimina N+1)
+│
+├── 006-rpc-create-appointment-with-services.sql ✅ OTIMIZAÇÃO
+│   └── RPC transacional para criação de appointments
+│
+├── 007-optimized-indices.sql ✅ PERFORMANCE
+│   └── 5 índices compostos estratégicos
+│
+├── schema-v2-optimized.sql ✅ PRINCIPAL
+│   └── Schema completo consolidado (execute PRIMEIRO em setup novo)
+│
+├── create-budgets-bucket.sql ✅ FEATURE OPCIONAL
+│   └── Configuração Storage para PDFs/Documentos
+│
+├── DEPLOYMENT_OPTIMIZATION_GUIDE.md ✅ DOCUMENTAÇÃO
+│   └── Este arquivo - guia completo de deployment
+│
+└── MIGRATION_GUIDE_V2.md ✅ SETUP INICIAL
+    └── Guia de migração e configuração inicial do projeto
+```
+
+### 🗑️ Arquivos Obsoletos Removidos (55 total)
+
+**Limpeza executada em:** 02/12/2025  
+**Branch:** feature/sp01
+
+#### Categorias Removidas:
+
+1. **Documentação de Migração V1→V2 (11 arquivos)**
+   - FASE_1_COMPLETA.md, FASE_1_FINAL.md
+   - migrate-to-v2.md, migrate-v2.sh
+   - CAMPO_*.md, CORRECOES_*.md, TROUBLESHOOTING_*.md
+   - FILE_STRUCTURE.md, COMANDOS.md, DEPLOY_GUIDE.md
+
+2. **Scripts SQL de Teste (9 arquivos)**
+   - check_tables.sql, supabase_setup.sql
+   - test-*.sql, verify-*.sql, query-*.sql
+
+3. **Migrations Incrementais Antigas (27 arquivos)**
+   - 001-fix-payment-status.sql até 004-add-travel-fee-field.sql
+   - add-*.sql, remove-*.sql, update-*.sql
+   - fix-*.sql, future-*.sql
+   - create-appointments-*.sql, create_clients_table.sql
+   - migrations.sql, migrations-safe.sql
+   - COMO_EXECUTAR_MIGRATION.md
+   - **Motivo:** Todas consolidadas em `schema-v2-optimized.sql`
+
+4. **Scripts de Seed (3 arquivos)**
+   - seed_clients.js, seed_clients.cjs, seed_clients_rest.cjs
+
+5. **Mocks e Exemplos (2 arquivos)**
+   - whatsapp-mock.cjs, whatsapp-service-example.js
+
+6. **Assets de Build Antigos (4 arquivos)**
+   - assets/index-*.css, assets/index-*.js
+   - **Motivo:** Regenerados automaticamente pelo build
+
+### 📋 Ordem de Execução (Setup Novo Banco)
+
+```bash
+# 1. SCHEMA BASE (obrigatório)
+database/schema-v2-optimized.sql
+
+# 2. OTIMIZAÇÕES (recomendado - ordem importante)
+database/005-rpc-check-duplicate-appointment.sql
+database/006-rpc-create-appointment-with-services.sql
+database/007-optimized-indices.sql
+
+# 3. FEATURES OPCIONAIS
+database/create-budgets-bucket.sql  # Se usar PDFs/Documentos
+```
+
+### ⚠️ Importante
+
+- **Não executar** migrations antigas (001-004) - já estão em `schema-v2-optimized.sql`
+- **Schema V2** é a fonte única de verdade para estrutura do banco
+- **Backups:** Migrations antigas preservadas no git history (antes de 02/12/2025)
+
+### 📊 Estatísticas da Limpeza
+
+- **Antes:** ~90 arquivos totais
+- **Depois:** ~35 arquivos essenciais
+- **Redução:** 61% menos arquivos
+- **Espaço liberado:** ~60KB de código obsoleto
+- **Manutenibilidade:** Estrutura clara e navegável
