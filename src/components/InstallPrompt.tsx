@@ -86,13 +86,20 @@ export default function InstallPrompt() {
     localStorage.setItem('pwa-install-dismissed', Date.now().toString())
   }
 
-  // Don't show if already installed or prompt not available
-  if (isInstalled || !showPrompt || !deferredPrompt) {
+  // Detect device type
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+  const isSamsungBrowser = /SamsungBrowser/i.test(navigator.userAgent)
+
+  // Don't show if already installed
+  if (isInstalled) {
     return null
   }
 
-  // Detect iOS for special instructions
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+  // Show always on Samsung Browser (has issues with beforeinstallprompt)
+  // Show on other browsers only if prompt is available
+  if (!showPrompt && !isSamsungBrowser) {
+    return null
+  }
 
   return (
     <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 z-50 animate-slide-up">
@@ -145,7 +152,7 @@ export default function InstallPrompt() {
           </ul>
 
           {/* Install button */}
-          {!isIOS ? (
+          {!isIOS && !isSamsungBrowser && deferredPrompt ? (
             <button
               onClick={handleInstall}
               className="w-full bg-white text-pink-600 font-semibold py-3 px-6 rounded-xl hover:bg-pink-50 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
@@ -154,11 +161,29 @@ export default function InstallPrompt() {
             </button>
           ) : (
             <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-sm">
-              <p className="font-semibold mb-2">Para instalar no iOS:</p>
+              <p className="font-semibold mb-2">
+                {isIOS ? 'Para instalar no iOS:' : 'Para instalar:'}
+              </p>
               <ol className="space-y-1 text-white/90">
-                <li>1. Toque no ícone <span className="font-bold">⎙</span> (compartilhar)</li>
-                <li>2. Role e toque em "Adicionar à Tela Inicial"</li>
-                <li>3. Toque em "Adicionar"</li>
+                {isIOS ? (
+                  <>
+                    <li>1. Toque no ícone <span className="font-bold">⎙</span> (compartilhar)</li>
+                    <li>2. Role e toque em "Adicionar à Tela Inicial"</li>
+                    <li>3. Toque em "Adicionar"</li>
+                  </>
+                ) : isSamsungBrowser ? (
+                  <>
+                    <li>1. Toque no menu <span className="font-bold">⋮</span> (3 pontos)</li>
+                    <li>2. Toque em "Adicionar página a"</li>
+                    <li>3. Selecione "Tela inicial"</li>
+                  </>
+                ) : (
+                  <>
+                    <li>1. Toque no menu <span className="font-bold">⋮</span></li>
+                    <li>2. Toque em "Instalar aplicativo"</li>
+                    <li>3. Confirme a instalação</li>
+                  </>
+                )}
               </ol>
             </div>
           )}
