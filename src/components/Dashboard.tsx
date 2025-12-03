@@ -102,17 +102,6 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
 
       if (pendingError) throw pendingError
 
-      // Calcular créditos (pagamentos parciais)
-      const { data: partialPayments, error: creditsError } = await supabase
-        .from('appointments')
-        .select('payment_total_service, total_received')
-        .eq('user_id', user.id)
-        .eq('payment_status', 'partial')
-
-      if (creditsError) throw creditsError
-
-      const credits = PaymentService.calculateTotalPending(partialPayments || [])
-
       // Buscar agendamentos confirmados do mês
       const { data: confirmedAppointments, error: confirmedError } = await supabase
         .from('appointments')
@@ -424,11 +413,11 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
           
           <div className="bg-white p-3 rounded-xl shadow-lg border-l-4 border-green-500">
             <div className="text-center">
-              <div className="text-sm text-gray-600 font-medium">Receita</div>
+              <div className="text-sm text-gray-600 font-medium">Pendente</div>
               <div className="text-base font-bold text-green-600">
                 {loading ? '...' : `R$ ${dashboardData.todayRevenue.toFixed(2)}`}
               </div>
-              <div className="text-xs text-gray-500">prevista hoje</div>
+              <div className="text-xs text-gray-500">a receber hoje</div>
             </div>
           </div>
         </div>
