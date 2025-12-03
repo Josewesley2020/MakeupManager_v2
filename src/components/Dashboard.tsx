@@ -9,6 +9,7 @@ import AppointmentsPage from './AppointmentsPage'
 import CalendarPage from './CalendarPage'
 import FinancialDashboard from './FinancialDashboard'
 import { Container } from './Container'
+import InstallButton from './InstallButton'
 
 interface DashboardProps {
   user: any
@@ -265,12 +266,15 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                 Bem-vinda, {user?.email?.split('@')[0]}!
               </p>
             </div>
-            <button
-              onClick={handleLogout}
-              className="text-pink-100 hover:text-white transition-colors"
-            >
-              🚪
-            </button>
+            <div className="flex items-center gap-3">
+              <InstallButton />
+              <button
+                onClick={handleLogout}
+                className="text-pink-100 hover:text-white transition-colors"
+              >
+                🚪
+              </button>
+            </div>
           </div>
         </div>
 
