@@ -132,28 +132,24 @@ VITE_SUPABASE_ANON_KEY=sua-chave-publica-aqui
 No Supabase, vá em **SQL Editor** e execute os scripts na ordem:
 
 ```sql
--- 1. Estrutura base (executar primeiro)
-database/migrations.sql
+-- 1. SCHEMA BASE (executar primeiro - OBRIGATÓRIO)
+database/schema-v2-optimized.sql
 
--- 2. Migrações incrementais (executar na ordem)
-database/001-fix-payment-status.sql
-database/002-add-total-amount-paid.sql
-database/003-add-payment-total-appointment.sql
-database/004-add-travel-fee-field.sql
+-- 2. OTIMIZAÇÕES (recomendado - executar na ordem)
+database/005-rpc-check-duplicate-appointment.sql  -- Elimina N+1 queries
+database/006-rpc-create-appointment-with-services.sql  -- Transação atômica
+database/007-optimized-indices.sql  -- Performance (5 índices)
+
+-- 3. FEATURES OPCIONAIS
+database/create-budgets-bucket.sql  -- Se usar PDFs/Documentos
 ```
 
-📖 **Guia completo de migrações:** Veja [database/README.md](database/README.md) para instruções detalhadas
+📖 **Guia completo:** Veja [database/DEPLOYMENT_OPTIMIZATION_GUIDE.md](database/DEPLOYMENT_OPTIMIZATION_GUIDE.md) para instruções detalhadas e troubleshooting
 
-#### 4. Configurar Row Level Security (RLS)
-
-Execute os scripts de segurança:
-
-```sql
-database/clients_rls.sql  -- Políticas RLS para clientes
--- As políticas para outras tabelas estão em migrations.sql
-```
-
-🔒 **Importante:** RLS garante que cada usuário só acesse seus próprios dados
+⚠️ **IMPORTANTE:** 
+- `schema-v2-optimized.sql` contém TODA a estrutura do banco (tabelas, RLS, constraints)
+- NÃO execute migrations antigas (001-004) - já estão consolidadas no schema V2
+- Otimizações (005-007) são opcionais mas ALTAMENTE recomendadas (70-80% menos queries)
 
 ### Primeiro Acesso
 
@@ -185,19 +181,75 @@ git push origin developer  # Desenvolvimento (não faz deploy)
 git push origin master     # Produção (deploy automático via CI/CD)
 ```
 
-📖 **Mais comandos:** Veja [COMANDOS.md](COMANDOS.md) para referência rápida completa
+## 📁 Estrutura do Projeto (Pós-Limpeza 02/12/2025)
 
-## 📁 Estrutura do Projeto
+### 🗂️ Diretórios Principais
 
 ```
-MakeupManager/
-├── src/
-│   ├── components/              # Componentes React
-│   │   ├── AppointmentsPage.tsx # Gestão de agendamentos
-│   │   ├── CalendarPage.tsx     # Calendário mensal
-│   │   ├── FinancialDashboard.tsx # Dashboard financeiro
-│   │   ├── Clients.tsx          # Gestão de clientes
-│   │   ├── ClientsPage.tsx      # Página de clientes
+MakeupManager_v2/
+├── 📁 src/                      # Código-fonte React/TypeScript
+│   ├── components/              # Componentes da aplicação
+│   │   ├── AppointmentsPage.tsx # Gestão de agendamentos + reminders
+│   │   ├── CalendarPage.tsx     # Calendário mensal interativo
+│   │   ├── FinancialDashboard.tsx # Métricas e relatórios financeiros
+│   │   ├── Clients.tsx          # CRUD de clientes
+│   │   ├── PriceCalculator.tsx  # Calculadora com orçamentos
+│   │   ├── Settings.tsx         # Configurações (serviços, regiões, perfil)
+│   │   ├── Dashboard.tsx        # Container principal e navegação
+│   │   └── [outros componentes] # Login, WhatsApp, etc.
+│   ├── lib/
+│   │   └── supabase.ts          # Cliente Supabase e types
+│   ├── App.tsx                  # Raiz da aplicação
+│   └── main.tsx                 # Entry point
+│
+├── 📁 database/                 # ✅ Scripts SQL essenciais (limpo!)
+│   ├── schema-v2-optimized.sql  # 🟢 PRINCIPAL - Schema completo V2
+│   ├── 005-rpc-check-duplicate-appointment.sql  # 🟢 Otimização N+1
+│   ├── 006-rpc-create-appointment-with-services.sql  # 🟢 Transação
+│   ├── 007-optimized-indices.sql  # 🟢 Performance (5 índices)
+│   ├── create-budgets-bucket.sql  # Feature PDFs (opcional)
+│   ├── DEPLOYMENT_OPTIMIZATION_GUIDE.md  # Guia completo
+│   └── MIGRATION_GUIDE_V2.md    # Setup inicial
+│
+├── 📁 scripts/                  # Utilitários
+│   ├── run-migration.cjs        # Executor de migrations
+│   └── create-budgets-bucket.cjs  # Guia setup PDFs
+│
+├── 📁 .github/                  # CI/CD e instruções AI
+│   ├── workflows/ci-deploy.yml  # GitHub Actions
+│   └── copilot-instructions.md  # Contexto do projeto
+│
+├── 📁 public/                   # Assets estáticos
+├── 📁 dist/                     # Build de produção (gerado)
+│
+├── 📄 .env.local                # Credenciais Supabase (não commitado)
+├── 📄 package.json              # Dependências e scripts
+├── 📄 vite.config.ts            # Configuração build
+├── 📄 deploy.ps1                # Script deploy automático
+├── 📄 whatsapp-server.cjs       # Servidor WhatsApp (opcional)
+├── 📄 start-whatsapp.bat        # Iniciar servidor WhatsApp
+└── 📄 README.md                 # Este arquivo
+```
+
+### 📊 Estatísticas da Limpeza (02/12/2025)
+
+- **Removidos:** 55 arquivos obsoletos (~60KB)
+- **Antes:** ~90 arquivos totais
+- **Depois:** ~35 arquivos essenciais
+- **Redução:** 61% menos arquivos
+- **Benefício:** Estrutura clara, fácil navegação, manutenção simplificada
+
+**Arquivos removidos:**
+- 27 migrations incrementais antigas (consolidadas em schema-v2)
+- 11 documentos de migração V1→V2 (processo concluído)
+- 9 scripts SQL de teste/verificação (queries temporárias)
+- 3 scripts de seed (desenvolvimento)
+- 2 mocks/exemplos não utilizados
+- 4 assets de build antigos (regenerados automaticamente)
+
+**Detalhes completos:** Ver seção "Arquivos Obsoletos Removidos" em [database/DEPLOYMENT_OPTIMIZATION_GUIDE.md](database/DEPLOYMENT_OPTIMIZATION_GUIDE.md)
+
+## 🗄️ Estrutura do Banco de Dados
 │   │   ├── Dashboard.tsx        # Dashboard principal
 │   │   ├── LoginForm.tsx        # Login/Autenticação
 │   │   ├── PriceCalculator.tsx  # Calculadora de preços

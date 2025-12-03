@@ -64,147 +64,57 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
     if (!user?.id) return
 
     try {
-      const today = new Date()
-      const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate())
-      const endOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59)
-      
-      const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
-      const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59)
+      setLoading(true)
 
-      // Buscar agendamentos de hoje
-      const { data: todayAppointments, error: todayError } = await supabase
-        .from('appointments')
-        .select(`
-          *,
-          clients (name, phone),
-          appointment_services (
-            quantity,
-            unit_price,
-            total_price,
-            services (name)
-          )
-        `)
-        .eq('user_id', user.id)
-        .gte('scheduled_date', startOfToday.toLocaleDateString('sv-SE'))
-        .lte('scheduled_date', endOfToday.toLocaleDateString('sv-SE'))
+      // OTIMIZAÇÃO: Consolidar 8 queries em 2 chamadas paralelas
+      // Query 1: Métricas agregadas via RPC (1 table scan com FILTER clauses)
+      // Query 2: Próximos agendamentos com detalhes (TOP 5)
+      const [metricsResult, upcomingResult] = await Promise.all([
+        supabase.rpc('get_dashboard_metrics', { p_user_id: user.id }),
+        supabase
+          .from('appointments')
+          .select(`
+            *,
+            total_duration_minutes,
+            clients (name, phone),
+            appointment_services (
+              quantity,
+              unit_price,
+              total_price,
+              services (name)
+            )
+          `)
+          .eq('user_id', user.id)
+          .eq('status', 'confirmed')
+          .gte('scheduled_date', new Date().toLocaleDateString('sv-SE'))
+          .order('scheduled_date', { ascending: true })
+          .order('scheduled_time', { ascending: true })
+          .limit(5)
+      ])
 
-      if (todayError) throw todayError
+      if (metricsResult.error) {
+        console.error('Erro ao buscar métricas:', metricsResult.error)
+        throw metricsResult.error
+      }
 
-      // Calcular receita pendente de hoje (o que falta receber)
-      const todayRevenue = PaymentService.calculateTotalPending(todayAppointments || [])
+      if (upcomingResult.error) {
+        console.error('Erro ao buscar próximos agendamentos:', upcomingResult.error)
+        throw upcomingResult.error
+      }
 
-      // Buscar agendamentos pendentes
-      const { data: pendingAppointments, error: pendingError } = await supabase
-        .from('appointments')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('status', 'pending')
+      const metrics = metricsResult.data
+      const upcomingAppointments = upcomingResult.data
 
-      if (pendingError) throw pendingError
-
-      // Calcular créditos (pagamentos parciais)
-      const { data: partialPayments, error: creditsError } = await supabase
-        .from('appointments')
-        .select('payment_total_service, total_received')
-        .eq('user_id', user.id)
-        .eq('payment_status', 'partial')
-
-      if (creditsError) throw creditsError
-
-      const credits = PaymentService.calculateTotalPending(partialPayments || [])
-
-      // Buscar agendamentos confirmados do mês
-      const { data: confirmedAppointments, error: confirmedError } = await supabase
-        .from('appointments')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('status', 'confirmed')
-        .gte('created_at', startOfMonth.toISOString())
-        .lte('created_at', endOfMonth.toISOString())
-
-      if (confirmedError) throw confirmedError
-
-      // Buscar agendamentos com pagamentos pendentes (apenas confirmados)
-      const { data: pendingPaymentsData, error: pendingPaymentsError } = await supabase
-        .from('appointments')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('status', 'confirmed')
-        .or('payment_status.eq.pending,payment_status.eq.partial')
-
-      if (pendingPaymentsError) throw pendingPaymentsError
-
-      // Buscar agendamentos atrasados (que já passaram da data e ainda não foram marcados como completed)
-      const { data: overdueAppointmentsData, error: overdueError } = await supabase
-        .from('appointments')
-        .select('id, scheduled_date, status')
-        .eq('user_id', user.id)
-        .lt('scheduled_date', new Date().toLocaleDateString('sv-SE'))
-        .or('status.eq.confirmed,status.eq.pending')
-
-      if (overdueError) throw overdueError
-
-      // Calcular receita prevista do mês (apenas o que falta receber)
-      const { data: monthlyRevenueData, error: monthlyRevenueError } = await supabase
-        .from('appointments')
-        .select(`
-          *,
-          appointment_services (
-            total_price
-          )
-        `)
-        .eq('user_id', user.id)
-        .gte('created_at', startOfMonth.toISOString())
-        .lte('created_at', endOfMonth.toISOString())
-
-      if (monthlyRevenueError) throw monthlyRevenueError
-
-      // Calcular receita mensal pendente
-      const monthlyRevenue = PaymentService.calculateTotalPending(monthlyRevenueData || [])
-
-      // Buscar próximos agendamentos (próximos 5)
-      const { data: upcomingAppointments, error: upcomingError } = await supabase
-        .from('appointments')
-        .select(`
-          *,
-          total_duration_minutes,
-          clients (name, phone),
-          appointment_services (
-            quantity,
-            unit_price,
-            total_price,
-            services (name)
-          )
-        `)
-        .eq('user_id', user.id)
-        .eq('status', 'confirmed')
-        .gte('scheduled_date', new Date().toLocaleDateString('sv-SE'))
-        .order('scheduled_date', { ascending: true })
-        .order('scheduled_time', { ascending: true })
-        .limit(5)
-
-      if (upcomingError) throw upcomingError
-
-      // Buscar agendamentos realizados do mês
-      const { data: completedAppointments, error: completedError } = await supabase
-        .from('appointments')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('status', 'completed')
-        .gte('created_at', startOfMonth.toISOString())
-        .lte('created_at', endOfMonth.toISOString())
-
-      if (completedError) throw completedError
-
+      // Atualizar estado com métricas agregadas + upcoming appointments
       setDashboardData({
-        todayAppointments: todayAppointments?.length || 0,
-        todayRevenue,
-        pendingAppointments: pendingAppointments?.length || 0,
-        confirmedAppointments: confirmedAppointments?.length || 0,
-        completedAppointments: completedAppointments?.length || 0,
-        monthlyRevenue,
-        pendingPayments: pendingPaymentsData?.length || 0,
-        overdueAppointments: overdueAppointmentsData?.length || 0,
+        todayAppointments: metrics?.today_appointments_count || 0,
+        todayRevenue: metrics?.today_revenue_pending || 0,
+        pendingAppointments: metrics?.pending_appointments_count || 0,
+        confirmedAppointments: metrics?.confirmed_appointments_month_count || 0,
+        completedAppointments: metrics?.completed_appointments_month_count || 0,
+        monthlyRevenue: metrics?.monthly_revenue_pending || 0,
+        pendingPayments: metrics?.pending_payments_count || 0,
+        overdueAppointments: metrics?.overdue_appointments_count || 0,
         upcomingAppointments: upcomingAppointments || []
       })
 
@@ -424,11 +334,11 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
           
           <div className="bg-white p-3 rounded-xl shadow-lg border-l-4 border-green-500">
             <div className="text-center">
-              <div className="text-sm text-gray-600 font-medium">Receita</div>
+              <div className="text-sm text-gray-600 font-medium">Pendente</div>
               <div className="text-base font-bold text-green-600">
                 {loading ? '...' : `R$ ${dashboardData.todayRevenue.toFixed(2)}`}
               </div>
-              <div className="text-xs text-gray-500">prevista hoje</div>
+              <div className="text-xs text-gray-500">a receber hoje</div>
             </div>
           </div>
         </div>

@@ -259,7 +259,6 @@ export default function AppointmentsPage({ user, onBack, initialFilter = 'all', 
       notes: '',
       payment_status: 'pending',
       total_amount_paid: 0,
-      total_received: 0,
       payment_total_service: 0,
       travel_fee: 0
     })
@@ -269,11 +268,6 @@ export default function AppointmentsPage({ user, onBack, initialFilter = 'all', 
     if (!editingAppointment || !user?.id) return
 
     try {
-      // Se o status for alterado para "completed", considerar que o pagamento também foi realizado
-      const isStatusChangedToCompleted = editForm.status === 'completed' && editingAppointment.status !== 'completed'
-      const updatedPaymentStatus = isStatusChangedToCompleted ? 'paid' : editForm.payment_status
-      const updatedTotalPaid = isStatusChangedToCompleted ? editingAppointment.payment_total_service : editForm.total_amount_paid
-
       // Verificar se os valores financeiros foram editados
       const wasServiceValueEdited = editForm.payment_total_service !== editingAppointment.payment_total_service
       const wasTravelFeeEdited = editForm.travel_fee !== editingAppointment.travel_fee
@@ -289,7 +283,8 @@ export default function AppointmentsPage({ user, onBack, initialFilter = 'all', 
           scheduled_date: editForm.scheduled_date || null,
           scheduled_time: editForm.scheduled_time || null,
           notes: editForm.notes || null,
-          total_amount_paid: updatedTotalPaid,
+          total_amount_paid: editForm.total_amount_paid,
+          payment_status: editForm.payment_status,
           payment_total_service: editForm.payment_total_service,
           travel_fee: editForm.travel_fee,
           payment_total_appointment: newTotalAppointment,
@@ -964,14 +959,24 @@ ${appointment.notes ? `📝 *Observações:* ${appointment.notes}` : ''}
                   value={editForm.status}
                   onChange={(e) => {
                     const newStatus = e.target.value as any
-                    // Se o status for alterado para "completed", automaticamente marcar como pago
-                    if (newStatus === 'completed') {
-                      setEditForm({
-                        ...editForm,
-                        status: newStatus,
-                        payment_status: 'paid',
-                        total_received: editingAppointment.payment_total_service
-                      })
+                    // Se o status for alterado para "completed", perguntar se deseja marcar como pago
+                    if (newStatus === 'completed' && editForm.payment_status !== 'paid') {
+                      const shouldMarkAsPaid = window.confirm(
+                        '💰 Deseja marcar este agendamento como PAGO ao concluí-lo?\n\n' +
+                        `Valor total: R$ ${editingAppointment.payment_total_service.toFixed(2)}\n` +
+                        `Valor já pago: R$ ${editForm.total_amount_paid.toFixed(2)}\n\n` +
+                        'Clique "OK" para marcar como pago ou "Cancelar" para manter o status de pagamento atual.'
+                      )
+                      if (shouldMarkAsPaid) {
+                        setEditForm({
+                          ...editForm,
+                          status: newStatus,
+                          payment_status: 'paid',
+                          total_amount_paid: editingAppointment.payment_total_service
+                        })
+                      } else {
+                        setEditForm({...editForm, status: newStatus})
+                      }
                     } else {
                       setEditForm({...editForm, status: newStatus})
                     }
