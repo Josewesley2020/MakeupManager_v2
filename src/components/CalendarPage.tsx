@@ -42,7 +42,7 @@ export default function CalendarPage({ user, onBack, onCreateAppointment }: Cale
     scheduled_time: '',
     notes: '',
     payment_status: 'pending' as 'pending' | 'paid',
-    total_received: 0,
+    total_amount_paid: 0,
     payment_total_service: 0,
     travel_fee: 0
   })
@@ -134,7 +134,7 @@ export default function CalendarPage({ user, onBack, onCreateAppointment }: Cale
       scheduled_time: appointment.scheduled_time || '',
       notes: appointment.notes || '',
       payment_status: appointment.payment_status || 'pending',
-      total_received: appointment.total_amount_paid || 0,
+      total_amount_paid: appointment.total_amount_paid || 0,
       payment_total_service: appointment.payment_total_service || 0,
       travel_fee: appointment.travel_fee || 0
     })
@@ -148,7 +148,7 @@ export default function CalendarPage({ user, onBack, onCreateAppointment }: Cale
       scheduled_time: '',
       notes: '',
       payment_status: 'pending',
-      total_received: 0,
+      total_amount_paid: 0,
       payment_total_service: 0,
       travel_fee: 0
     })
@@ -158,10 +158,6 @@ export default function CalendarPage({ user, onBack, onCreateAppointment }: Cale
     if (!editingAppointment || !user?.id) return
 
     try {
-      // Detectar se houve edição nos valores financeiros
-      const isStatusChangedToCompleted = editForm.status === 'completed' && editingAppointment.status !== 'completed'
-      const updatedTotalReceived = isStatusChangedToCompleted ? editingAppointment.payment_total_service : editForm.total_received
-
       // Verificar se valores financeiros foram editados
       const wasServiceValueEdited = editForm.payment_total_service !== editingAppointment.payment_total_service
       const wasTravelFeeEdited = editForm.travel_fee !== editingAppointment.travel_fee
@@ -182,7 +178,7 @@ export default function CalendarPage({ user, onBack, onCreateAppointment }: Cale
           scheduled_time: editForm.scheduled_time || null,
           notes: editForm.notes || null,
           payment_status: editForm.payment_status,
-          total_amount_paid: updatedTotalReceived,
+          total_amount_paid: editForm.total_amount_paid,
           payment_total_service: editForm.payment_total_service,
           travel_fee: editForm.travel_fee,
           payment_total_appointment: newTotalAppointment,
@@ -999,14 +995,24 @@ export default function CalendarPage({ user, onBack, onCreateAppointment }: Cale
                   value={editForm.status}
                   onChange={(e) => {
                     const newStatus = e.target.value as any
-                    // Se o status for alterado para "completed", automaticamente marcar como pago
-                    if (newStatus === 'completed') {
-                      setEditForm({
-                        ...editForm,
-                        status: newStatus,
-                        payment_status: 'paid',
-                        total_received: editingAppointment.payment_total_service || 0
-                      })
+                    // Se o status for alterado para "completed", perguntar se deseja marcar como pago
+                    if (newStatus === 'completed' && editForm.payment_status !== 'paid') {
+                      const shouldMarkAsPaid = window.confirm(
+                        '💰 Deseja marcar este agendamento como PAGO ao concluí-lo?\n\n' +
+                        `Valor total: R$ ${(editingAppointment.payment_total_service || 0).toFixed(2)}\n` +
+                        `Valor já pago: R$ ${editForm.total_amount_paid.toFixed(2)}\n\n` +
+                        'Clique "OK" para marcar como pago ou "Cancelar" para manter o status de pagamento atual.'
+                      )
+                      if (shouldMarkAsPaid) {
+                        setEditForm({
+                          ...editForm,
+                          status: newStatus,
+                          payment_status: 'paid',
+                          total_amount_paid: editingAppointment.payment_total_service || 0
+                        })
+                      } else {
+                        setEditForm({...editForm, status: newStatus})
+                      }
                     } else {
                       setEditForm({...editForm, status: newStatus})
                     }
@@ -1134,8 +1140,8 @@ export default function CalendarPage({ user, onBack, onCreateAppointment }: Cale
                       <input
                         type="number"
                         step="10"
-                        value={editForm.total_received}
-                        onChange={(e) => setEditForm({...editForm, total_received: parseFloat(e.target.value) || 0})}
+                        value={editForm.total_amount_paid}
+                        onChange={(e) => setEditForm({...editForm, total_amount_paid: parseFloat(e.target.value) || 0})}
                         className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white text-gray-900 font-medium"
                         placeholder="0.00"
                       />
@@ -1144,7 +1150,7 @@ export default function CalendarPage({ user, onBack, onCreateAppointment }: Cale
                     <div className="mt-3 flex justify-between items-center bg-gradient-to-r from-amber-50 to-orange-50 p-3 rounded-lg border border-amber-200">
                       <span className="text-sm font-semibold text-gray-700">💳 Valor Pendente:</span>
                       <span className="text-lg font-bold text-orange-600">
-                        R$ {((editForm.payment_total_service + editForm.travel_fee) - editForm.total_received).toFixed(2)}
+                        R$ {((editForm.payment_total_service + editForm.travel_fee) - editForm.total_amount_paid).toFixed(2)}
                       </span>
                     </div>
                   </div>

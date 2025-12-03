@@ -80,18 +80,9 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
   const [knownClients, setKnownClients] = useState<Array<{id:string,name:string,phone?:string}>>([])
   const [clientsLoading, setClientsLoading] = useState(false)
   const [clientsError, setClientsError] = useState<string | null>(null)
-
-  // PDFs disponíveis para anexar
-  const [availablePdfs, setAvailablePdfs] = useState<Array<{
-    id: string
-    name: string
-    path: string
-    size: number
-    created_at: string
-  }>>([])
-  const [selectedPdfForAttachment, setSelectedPdfForAttachment] = useState<string[]>([])
-  const [showPdfSelector, setShowPdfSelector] = useState(false)
-  const [pdfSearchTerm, setPdfSearchTerm] = useState('')
+  
+  // Cache do perfil do usuário (carregado uma vez)
+  const [userProfile, setUserProfile] = useState<{full_name?: string, instagram?: string} | null>(null)
 
   useEffect(() => {
     let mounted = true
@@ -100,59 +91,49 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
       
       setClientsLoading(true)
       setClientsError(null)
+      
       try {
-        let query = supabase.from('clients').select('id,name,phone,address,instagram').order('created_at', { ascending: false })
-        query = query.eq('user_id', user.id)
-        const { data, error } = await query
+        // Carregar clientes E perfil em PARALELO (otimização)
+        const [clientsResult, profileResult] = await Promise.all([
+          supabase
+            .from('clients')
+            .select('id,name,phone,address,instagram')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false }),
+          
+          supabase
+            .from('profiles')
+            .select('full_name,instagram') // Apenas campos necessários
+            .eq('id', user.id)
+            .single()
+        ])
 
-        if (error) throw error
-        if (mounted && data) {
-          setKnownClients(data.map((c: any) => ({ id: c.id, name: c.name, phone: c.phone, address: c.address, instagram: c.instagram })))
+        if (mounted) {
+          if (clientsResult.data) {
+            setKnownClients(clientsResult.data.map((c: any) => ({ 
+              id: c.id, 
+              name: c.name, 
+              phone: c.phone, 
+              address: c.address, 
+              instagram: c.instagram 
+            })))
+          }
+          
+          if (profileResult.data) {
+            setUserProfile(profileResult.data)
+          }
+          
+          if (clientsResult.error) throw clientsResult.error
         }
       } catch (err: any) {
-        console.warn('Erro carregando clients do Supabase', err)
+        console.warn('Erro carregando dados do Supabase', err)
         setClientsError(err.message || String(err))
       } finally {
         setClientsLoading(false)
       }
     })()
-
-    // Carregar PDFs disponíveis
-    ;(async () => {
-      if (!user || !user.id) return
-
-      try {
-        const { data, error } = await supabase.storage
-          .from('budgets')
-          .list(user.id + '/', {
-            limit: 50,
-            offset: 0,
-            sortBy: { column: 'created_at', order: 'desc' }
-          })
-
-        if (error) throw error
-
-        if (mounted && data) {
-          const pdfDocuments = data.map(file => ({
-            id: file.id || file.name,
-            name: file.name,
-            path: `${user.id}/${file.name}`,
-            size: file.metadata?.size || 0,
-            created_at: file.created_at || new Date().toISOString()
-          }))
-          setAvailablePdfs(pdfDocuments)
-        }
-      } catch (err: any) {
-        console.warn('Erro carregando PDFs:', err)
-      }
-    })()
     return () => { mounted = false }
   }, [user])
-
-  // Filtrar PDFs baseado no termo de pesquisa
-  const filteredPdfs = availablePdfs.filter(pdf =>
-    pdf.name.toLowerCase().includes(pdfSearchTerm.toLowerCase())
-  )
 
   const handleClientNameChange = (v: string) => {
     setClientName(v)
@@ -305,7 +286,6 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
     setIsAppointmentConfirmed(false)
     setDownPaymentAmount('0')
     setPaymentStatus('pending')
-    setSelectedPdfForAttachment([])
   }
 
   const sendWhatsAppBudget = async () => {
@@ -329,22 +309,7 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
     const formatCurrency = (value: number) =>
       value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 
-    // Carregar informações do perfil do usuário
-    let userProfile = null
-    try {
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single()
-
-      if (profileData) {
-        userProfile = profileData
-      }
-    } catch (error) {
-      console.warn('Erro ao carregar perfil do usuário:', error)
-    }
-
+    // Usar perfil do cache (já carregado no useEffect inicial)
     const lines: string[] = []
     lines.push('💄 *ORÇAMENTO PERSONALIZADO*')
     lines.push('✨ Produção de Beleza Profissional')
@@ -421,31 +386,7 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
       }
     }
 
-    // Adicionar PDFs anexados se selecionados
-    const attachmentLines: string[] = []
-    if (selectedPdfForAttachment.length > 0) {
-      attachmentLines.push('', '*Documentos anexados:*')
-      for (const pdfId of selectedPdfForAttachment) {
-        const selectedPdf = availablePdfs.find(pdf => pdf.id === pdfId)
-        if (selectedPdf) {
-          try {
-            const { data } = await supabase.storage
-              .from('budgets')
-              .getPublicUrl(selectedPdf.path)
-
-            if (data?.publicUrl) {
-              attachmentLines.push(`• ${selectedPdf.name}`)
-              attachmentLines.push(data.publicUrl)
-            }
-          } catch (err) {
-            console.warn(`Erro ao obter URL do PDF ${selectedPdf.name}:`, err)
-          }
-        }
-      }
-      attachmentLines.push('Documentos relacionados ao orçamento enviado acima.')
-    }
-
-    const message = [...lines, ...socialLines, ...attachmentLines].join('\n')
+    const message = [...lines, ...socialLines].join('\n')
 
     setWhatsappMessage(message)
     setShowWhatsAppModal(true)
@@ -628,71 +569,30 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
     setIsCreatingAppointment(true)
 
     try {
-      // 1. Verificar se o cliente existe, se não existir, criar
-      let clientId = knownClients.find(c => c.name === clientName)?.id
+      // 1. Identificar cliente existente ou deixar RPC criar novo
+      const clientId = knownClients.find(c => c.name === clientName)?.id || null
 
-      if (!clientId) {
-        // Criar novo cliente
-        const { data: newClient, error: clientError } = await supabase
-          .from('clients')
-          .insert({
-            user_id: user.id,
-            name: clientName,
-            phone: clientPhone,
-            address: appointmentAddress || null
-          })
-          .select('id')
-          .single()
-
-        if (clientError) throw clientError
-        clientId = newClient.id
-      }
-
-      // 2. Verificar se já existe um agendamento duplicado
-      const duplicateCheckQuery = supabase
-        .from('appointments')
-        .select(`
-          id,
-          appointment_services (
-            service_id,
-            quantity
-          )
-        `)
-        .eq('user_id', user.id)
-        .eq('client_id', clientId)
-        .eq('service_area_id', selectedArea)
-
-      // Para agendamentos confirmados, verificar data e horário
-      if (isAppointmentConfirmed) {
-        duplicateCheckQuery
-          .eq('scheduled_date', appointmentDate)
-          .eq('scheduled_time', appointmentTime)
-      }
-
-      const { data: existingAppointments, error: checkError } = await duplicateCheckQuery
-
-      if (checkError) throw checkError
-
-      // Verificar se algum agendamento existente tem os mesmos serviços (apenas se não for valor manual)
-      if (existingAppointments && existingAppointments.length > 0 && !useManualPrice) {
-        for (const existingAppointment of existingAppointments) {
-          const existingServices = existingAppointment.appointment_services || []
-          
-          // Verificar se tem a mesma quantidade de serviços
-          if (existingServices.length === calculatedPrices.services.length) {
-            // Verificar se todos os serviços são iguais (mesmo ID e quantidade)
-            const servicesMatch = calculatedPrices.services.every(newService => {
-              return existingServices.some(existingService => 
-                existingService.service_id === newService.serviceId && 
-                existingService.quantity === newService.quantity
-              )
-            })
-
-            if (servicesMatch) {
-              alert('⚠️ Agendamento duplicado detectado!\n\nJá existe um agendamento idêntico para este cliente com os mesmos serviços, data e horário.')
-              return
-            }
+      // 2. Verificar se já existe um agendamento duplicado (usando RPC otimizada)
+      if (isAppointmentConfirmed && !useManualPrice) {
+        const serviceIds = calculatedPrices.services.map(s => s.serviceId)
+        
+        const { data: isDuplicate, error: checkError } = await supabase.rpc(
+          'check_duplicate_appointment',
+          {
+            p_user_id: user.id,
+            p_client_id: clientId,
+            p_service_area_id: selectedArea,
+            p_scheduled_date: appointmentDate,
+            p_scheduled_time: appointmentTime,
+            p_service_ids: serviceIds
           }
+        )
+
+        if (checkError) throw checkError
+
+        if (isDuplicate) {
+          alert('⚠️ Agendamento duplicado detectado!\n\nJá existe um agendamento idêntico para este cliente com os mesmos serviços, data e horário.')
+          return
         }
       }
 
@@ -730,56 +630,48 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
         }
       }
 
-      // 4. Criar o agendamento
-      const { data: appointment, error: appointmentError } = await supabase
-        .from('appointments')
-        .insert({
-          user_id: user.id,
-          client_id: clientId,
-          service_area_id: selectedArea,
-          scheduled_date: isAppointmentConfirmed ? appointmentDate : null,
-          scheduled_time: isAppointmentConfirmed ? appointmentTime : null,
-          status: isAppointmentConfirmed ? 'confirmed' : 'pending',
-          appointment_address: appointmentAddress || null,
+      // 3. Criar agendamento completo usando RPC transacional
+      const { data: result, error: createError } = await supabase.rpc(
+        'create_appointment_with_services',
+        {
+          p_user_id: user.id,
+          p_client_data: {
+            id: clientId || '',
+            name: clientName,
+            phone: clientPhone,
+            address: appointmentAddress || null
+          },
+          p_appointment_data: {
+            service_area_id: selectedArea,
+            scheduled_date: isAppointmentConfirmed ? appointmentDate : null,
+            scheduled_time: isAppointmentConfirmed ? appointmentTime : null,
+            status: isAppointmentConfirmed ? 'confirmed' : 'pending',
+            appointment_address: appointmentAddress || null,
+            payment_total_service: servicesOnlyValue,
+            travel_fee: travelFee,
+            payment_total_appointment: totalAppointmentValue,
+            payment_status: finalPaymentStatus,
+            total_amount_paid: downPaymentPaid,
+            is_custom_price: useManualPrice,
+            total_duration_minutes: totalDurationMinutes,
+            whatsapp_sent: false,
+            notes: useManualPrice ?
+              `Valor diferenciado: R$ ${parseFloat(manualPrice.replace(',', '.')).toFixed(2)}` :
+              `${calculatedPrices.services.length} serviço(s)`
+          },
+          p_services: calculatedPrices.services.map(service => ({
+            service_id: service.serviceId,
+            quantity: service.quantity,
+            unit_price: service.unitPrice,
+            total_price: service.totalPrice
+          }))
+        }
+      )
 
-          // Campos de pagamento
-          payment_total_service: servicesOnlyValue, // Valor apenas dos serviços
-          travel_fee: travelFee, // Taxa de deslocamento
-          payment_total_appointment: totalAppointmentValue, // Valor total (serviços + taxa)
-          payment_status: finalPaymentStatus,
-          total_amount_paid: downPaymentPaid, // Novo campo - valor já pago
-          is_custom_price: useManualPrice, // Indica se foi usado valor diferenciado
+      if (createError) throw createError
+      if (!result || !result.success) throw new Error('Falha ao criar agendamento')
 
-          // Tempo total do atendimento
-          total_duration_minutes: totalDurationMinutes,
-
-          notes: useManualPrice ?
-            `Valor diferenciado: R$ ${parseFloat(manualPrice.replace(',', '.')).toFixed(2)}` :
-            `${calculatedPrices.services.length} serviço(s)`
-        })
-        .select('id')
-        .single()
-
-      if (appointmentError) throw appointmentError
-
-      // 5. Inserir os serviços do agendamento (sempre, independente do tipo de preço)
-      if (calculatedPrices.services.length > 0) {
-        const appointmentServicesData = calculatedPrices.services.map(service => ({
-          appointment_id: appointment.id,
-          service_id: service.serviceId,
-          quantity: service.quantity,
-          unit_price: service.unitPrice,
-          total_price: service.totalPrice
-        }))
-
-        const { error: servicesError } = await supabase
-          .from('appointment_services')
-          .insert(appointmentServicesData)
-
-        if (servicesError) throw servicesError
-      }
-
-      // 6. Sucesso - fechar modal e limpar dados
+      // 4. Sucesso - fechar modal e limpar dados
       alert(`✅ Agendamento ${isAppointmentConfirmed ? 'confirmado' : 'criado'} com sucesso!${useManualPrice ? ' (Valor diferenciado aplicado)' : ''}`)
       
       setShowAppointmentModal(false)
@@ -1260,82 +1152,6 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
               <h3 className="text-lg font-semibold text-gray-800 mb-4">
                 📱 Revisar Mensagem do WhatsApp
               </h3>
-              
-              {/* Seção de anexar PDFs */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  📎 Anexar Documentos (opcional)
-                </label>
-                
-                {availablePdfs.length === 0 ? (
-                  <div className="text-center py-6 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                    <div className="text-3xl mb-2">📄</div>
-                    <p className="text-sm text-gray-600 mb-1">Nenhum documento disponível</p>
-                    <p className="text-xs text-gray-500">
-                      💡 Faça upload de documentos na seção "📄 Gerenciador de Documentos"
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-2 max-h-40 overflow-y-auto">
-                    {availablePdfs.map((pdf) => {
-                      const isSelected = selectedPdfForAttachment.includes(pdf.id)
-                      return (
-                        <div
-                          key={pdf.id}
-                          className={`p-3 rounded-lg border-2 transition-all cursor-pointer ${
-                            isSelected
-                              ? 'border-blue-500 bg-blue-50 shadow-sm'
-                              : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
-                          }`}
-                          onClick={() => {
-                            setSelectedPdfForAttachment(prev =>
-                              isSelected
-                                ? prev.filter(id => id !== pdf.id)
-                                : [...prev, pdf.id]
-                            )
-                          }}
-                        >
-                          <div className="flex items-center space-x-3">
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={() => {}} // Controlado pelo onClick do container
-                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                            />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center space-x-2">
-                                <span className="text-sm font-medium text-gray-900 truncate">
-                                  📄 {pdf.name}
-                                </span>
-                                {isSelected && (
-                                  <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
-                                    Selecionado
-                                  </span>
-                                )}
-                              </div>
-                              <div className="text-xs text-gray-500 mt-1">
-                                📏 {(pdf.size / 1024 / 1024).toFixed(2)} MB • 
-                                📅 {formatDate(pdf.created_at)}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-                
-                {selectedPdfForAttachment.length > 0 && (
-                  <div className="mt-3 p-3 bg-green-50 rounded-lg border border-green-200">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-green-600">✅</span>
-                      <span className="text-sm font-medium text-green-800">
-                        {selectedPdfForAttachment.length} documento(s) selecionado(s) para anexar
-                      </span>
-                    </div>
-                  </div>
-                )}
-              </div>
               
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1889,111 +1705,6 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
                   ✅ Sim, foi pago
                 </button>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de seleção de PDFs */}
-      {showPdfSelector && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden flex flex-col">
-            <h3 className="text-lg font-semibold mb-4">Selecionar Documentos para Anexar</h3>
-
-            {/* Campo de pesquisa */}
-            <div className="mb-4">
-              <input
-                type="text"
-                placeholder="🔍 Pesquisar documentos por nome..."
-                value={pdfSearchTerm}
-                onChange={(e) => setPdfSearchTerm(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                autoFocus
-              />
-            </div>
-
-            {/* Contador de seleção */}
-            <div className="mb-4 text-sm text-gray-600">
-              {selectedPdfForAttachment.length} documento{selectedPdfForAttachment.length !== 1 ? 's' : ''} selecionado{selectedPdfForAttachment.length !== 1 ? 's' : ''}
-            </div>
-
-            {/* Lista de PDFs */}
-            <div className="flex-1 overflow-y-auto border rounded-lg">
-              {filteredPdfs.length === 0 ? (
-                <div className="p-8 text-center text-gray-500">
-                  {availablePdfs.length === 0 ? (
-                    <>
-                      <div className="text-4xl mb-2">📄</div>
-                      Nenhum documento encontrado
-                      <br />
-                      <span className="text-sm">Faça upload de PDFs primeiro</span>
-                    </>
-                  ) : (
-                    <>
-                      <div className="text-4xl mb-2">🔍</div>
-                      Nenhum documento encontrado para "{pdfSearchTerm}"
-                    </>
-                  )}
-                </div>
-              ) : (
-                <div className="divide-y divide-gray-100">
-                  {filteredPdfs.map((pdf) => {
-                    const isSelected = selectedPdfForAttachment.includes(pdf.id)
-                    return (
-                      <div
-                        key={pdf.id}
-                        className={`p-4 hover:bg-gray-50 transition-colors cursor-pointer ${
-                          isSelected ? 'bg-purple-50 border-l-4 border-purple-500' : ''
-                        }`}
-                        onClick={() => {
-                          if (isSelected) {
-                            setSelectedPdfForAttachment(prev => prev.filter(id => id !== pdf.id))
-                          } else {
-                            setSelectedPdfForAttachment(prev => [...prev, pdf.id])
-                          }
-                        }}
-                      >
-                        <div className="flex items-center space-x-3">
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => {}} // Controlled by onClick
-                            className="w-4 h-4 text-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500"
-                          />
-                          <div className="flex-1">
-                            <div className="font-medium text-gray-900">
-                              📄 {pdf.name}
-                            </div>
-                            <div className="text-sm text-gray-600">
-                              📏 {(pdf.size / 1024 / 1024).toFixed(2)} MB • 📅 {formatDate(pdf.created_at)}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Botões */}
-            <div className="flex gap-2 mt-4">
-              <button
-                onClick={() => setShowPdfSelector(false)}
-                className="flex-1 bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors"
-              >
-                Confirmar ({selectedPdfForAttachment.length})
-              </button>
-              <button
-                onClick={() => {
-                  setShowPdfSelector(false)
-                  setSelectedPdfForAttachment([])
-                  setPdfSearchTerm('')
-                }}
-                className="flex-1 bg-gray-500 text-white py-2 px-4 rounded-lg hover:bg-gray-600 transition-colors"
-              >
-                Cancelar
-              </button>
             </div>
           </div>
         </div>
