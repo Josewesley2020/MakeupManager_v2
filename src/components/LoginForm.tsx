@@ -25,6 +25,10 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
       // Debug: verificar se o Supabase está configurado
       console.log('Attempting login/signup...')
       
+      // Teste de conectividade antes de tentar autenticação
+      const { data: testData, error: testError } = await supabase.from('profiles').select('count').limit(1)
+      console.log('Supabase connection test:', { testData, testError })
+      
       if (isSignUp) {
         // Criar conta
         const { data, error } = await supabase.auth.signUp({
