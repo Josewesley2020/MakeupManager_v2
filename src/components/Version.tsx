@@ -5,8 +5,8 @@ export default function Version() {
   const [showDetails, setShowDetails] = useState(false)
   
   // Version info - Update these when releasing new versions
-  const version = '1.0.0'
-  const releaseDate = '06/12/2024'
+  const version = '1.0.1'
+  const releaseDate = '06/12/2025'
   
   // Detectar ambiente automaticamente
   const getEnvironment = () => {
@@ -50,7 +50,7 @@ export default function Version() {
           />
           
           {/* Popup */}
-          <div className="absolute left-0 top-10 z-50 bg-white rounded-xl shadow-2xl border border-gray-200 p-4 w-72 animate-fade-in">
+          <div className="absolute right-0 sm:left-0 top-10 z-50 bg-white rounded-xl shadow-2xl border border-gray-200 p-4 w-72 sm:w-80 animate-fade-in">
             <div className="space-y-3">
               {/* Header */}
               <div className="flex items-center justify-between border-b border-gray-200 pb-3">
@@ -84,23 +84,23 @@ export default function Version() {
               {/* Changelog */}
               <div className="border-t border-gray-200 pt-3">
                 <p className="text-xs text-gray-500 leading-relaxed">
-                  <strong className="text-gray-800 block mb-2">✨ Novidades v{version}:</strong>
+                  <strong className="text-gray-800 block mb-2">✨ Novidades v1.0.1:</strong>
                   <span className="space-y-1 block">
                     <span className="flex items-start gap-2">
                       <span className="text-pink-500 flex-shrink-0">•</span>
-                      <span>PWA instalável com modo offline</span>
+                      <span>Layout otimizado para mobile</span>
                     </span>
                     <span className="flex items-start gap-2">
                       <span className="text-pink-500 flex-shrink-0">•</span>
-                      <span>Dashboard otimizado (4x mais rápido)</span>
+                      <span>Detecção de navegadores melhorada</span>
                     </span>
                     <span className="flex items-start gap-2">
                       <span className="text-pink-500 flex-shrink-0">•</span>
-                      <span>Notificações automáticas</span>
+                      <span>Nome do usuário no header</span>
                     </span>
                     <span className="flex items-start gap-2">
                       <span className="text-pink-500 flex-shrink-0">•</span>
-                      <span>Sistema de versionamento visível</span>
+                      <span>Correções de UX no modal</span>
                     </span>
                   </span>
                 </p>
