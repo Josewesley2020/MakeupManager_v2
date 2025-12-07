@@ -580,10 +580,10 @@ export function Settings({ user, onBack }: SettingsProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 px-4 py-6">
-      <Container className="space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 py-2">
+      <Container className="space-y-3">
         {/* Header */}
-        <div className="bg-white p-6 rounded-2xl shadow-xl">
+        <div className="bg-white p-3 rounded-xl shadow-md">
           <div className="flex items-center justify-between mb-4">
             <button
               onClick={onBack}

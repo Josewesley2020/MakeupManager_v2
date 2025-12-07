@@ -21,6 +21,7 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
   const [phoneNumber, setPhoneNumber] = useState('')
   const [message, setMessage] = useState('')
   const [currentView, setCurrentView] = useState<'dashboard' | 'settings' | 'calculator' | 'clients' | 'appointments' | 'calendar' | 'financial'>('dashboard')
+  const [userName, setUserName] = useState<string>('')
   
   // Estados para dados do agendamento rápido (vindo do calendário)
   const [quickAppointmentData, setQuickAppointmentData] = useState<{
@@ -129,7 +130,26 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
 
   useEffect(() => {
     fetchDashboardData()
+    fetchUserProfile()
   }, [user?.id])
+
+  const fetchUserProfile = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('full_name, email')
+        .eq('id', user?.id)
+        .single()
+
+      if (error) throw error
+      
+      // Usar full_name se existir, senão usar email sem domínio
+      setUserName(data?.full_name || data?.email?.split('@')[0] || 'Usuário')
+    } catch (error) {
+      console.error('Erro ao buscar perfil:', error)
+      setUserName(user?.email?.split('@')[0] || 'Usuário')
+    }
+  }
 
   // Função helper para renderizar status do agendamento
   const getStatusColor = (status: string) => {
@@ -257,72 +277,74 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50 py-2">
       <Container className="space-y-3">
         {/* Header */}
-        <div className="bg-gradient-to-r from-pink-500 to-purple-600 text-white p-3 rounded-2xl shadow-xl mb-3">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-3">
-              <div>
-                <h1 className="text-xl font-bold">
-                  💄 Dashboard
-                </h1>
-                <p className="text-pink-100 text-sm">
-                  Bem-vinda, {user?.email?.split('@')[0]}!
-                </p>
-              </div>
-              <Version />
-            </div>
+        <div className="bg-gradient-to-r from-pink-500 to-purple-600 text-white p-3 rounded-xl shadow-lg mb-2">
+          {/* Top row: Title and Actions */}
+          <div className="flex justify-between items-center mb-2">
+            <h1 className="text-lg font-bold flex items-center gap-2">
+              <span>💄</span>
+              <span>Dashboard</span>
+            </h1>
             <div className="flex items-center gap-2">
               <InstallButton />
               <button
                 onClick={handleLogout}
-                className="text-pink-100 hover:text-white transition-colors p-2"
+                className="text-pink-100 hover:text-white transition-colors p-1.5 hover:bg-white/10 rounded-lg"
                 title="Sair"
               >
                 🚪
               </button>
             </div>
           </div>
+          
+          {/* Bottom row: User info and Version */}
+          <div className="flex justify-between items-center">
+            <p className="text-pink-100 text-sm truncate">
+              Bem-vinda, {userName}!
+            </p>
+            <Version />
+          </div>
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-3 gap-2 mb-3">
+        <div className="grid grid-cols-3 gap-2 mb-2">
           <button
             onClick={() => setCurrentView('calculator')}
-            className="bg-gradient-to-br from-green-400 to-green-600 text-white p-3 rounded-xl shadow-lg active:scale-95 transition-transform"
+            className="bg-gradient-to-br from-green-400 to-green-600 text-white p-2.5 rounded-lg shadow-md active:scale-95 transition-transform"
           >
             <div className="text-2xl mb-1">🧮</div>
             <div className="text-xs font-semibold">Calculadora</div>
           </button>
           <button
             onClick={() => setCurrentView('clients')}
-            className="bg-gradient-to-br from-blue-400 to-blue-600 text-white p-3 rounded-xl shadow-lg active:scale-95 transition-transform"
+            className="bg-gradient-to-br from-blue-400 to-blue-600 text-white p-2.5 rounded-lg shadow-md active:scale-95 transition-transform"
           >
             <div className="text-2xl mb-1">👥</div>
             <div className="text-xs font-semibold">Clientes</div>
           </button>
           <button
             onClick={() => setCurrentView('appointments')}
-            className="bg-gradient-to-br from-orange-400 to-red-500 text-white p-3 rounded-xl shadow-lg active:scale-95 transition-transform"
+            className="bg-gradient-to-br from-orange-400 to-red-500 text-white p-2.5 rounded-lg shadow-md active:scale-95 transition-transform"
           >
             <div className="text-2xl mb-1">📅</div>
             <div className="text-xs font-semibold">Agendamentos</div>
           </button>
           <button
             onClick={() => setCurrentView('settings')}
-            className="bg-gradient-to-br from-gray-400 to-gray-600 text-white p-3 rounded-xl shadow-lg active:scale-95 transition-transform"
+            className="bg-gradient-to-br from-gray-400 to-gray-600 text-white p-2.5 rounded-lg shadow-md active:scale-95 transition-transform"
           >
             <div className="text-2xl mb-1">⚙️</div>
             <div className="text-xs font-semibold">Config</div>
           </button>
           <button
             onClick={() => setCurrentView('calendar')}
-            className="bg-gradient-to-br from-cyan-400 to-blue-600 text-white p-3 rounded-xl shadow-lg active:scale-95 transition-transform"
+            className="bg-gradient-to-br from-cyan-400 to-blue-600 text-white p-2.5 rounded-lg shadow-md active:scale-95 transition-transform"
           >
             <div className="text-2xl mb-1">📅</div>
             <div className="text-xs font-semibold">Calendário</div>
           </button>
           <button
             onClick={() => setCurrentView('financial')}
-            className="bg-gradient-to-br from-green-400 to-emerald-600 text-white p-3 rounded-xl shadow-lg active:scale-95 transition-transform"
+            className="bg-gradient-to-br from-green-400 to-emerald-600 text-white p-2.5 rounded-lg shadow-md active:scale-95 transition-transform"
           >
             <div className="text-2xl mb-1">💰</div>
             <div className="text-xs font-semibold">Financeiro</div>
@@ -333,7 +355,7 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
         {!window.matchMedia('(display-mode: standalone)').matches && 
          !(window.navigator as any).standalone && 
          !localStorage.getItem('pwa-install-card-dismissed') && (
-          <div className="bg-gradient-to-r from-pink-500 to-purple-600 p-4 rounded-xl shadow-xl mb-3 text-white relative overflow-hidden">
+          <div className="bg-gradient-to-r from-pink-500 to-purple-600 p-3 rounded-lg shadow-lg mb-2 text-white relative overflow-hidden">
             <button
               onClick={() => localStorage.setItem('pwa-install-card-dismissed', 'true')}
               className="absolute top-2 right-2 text-white hover:bg-white hover:bg-opacity-20 rounded-full w-6 h-6 flex items-center justify-center text-xs transition-all"
@@ -360,21 +382,21 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
         )}
 
         {/* Cards de Status */}
-        <div className="grid grid-cols-2 gap-2 mb-4">
-          <div className="bg-white p-3 rounded-xl shadow-lg border-l-4 border-pink-500">
+        <div className="grid grid-cols-2 gap-2 mb-2">
+          <div className="bg-white p-2.5 rounded-lg shadow-md border-l-4 border-pink-500">
             <div className="text-center">
-              <div className="text-sm text-gray-600 font-medium">Hoje</div>
-              <div className="text-xl font-bold text-pink-600">
+              <div className="text-xs text-gray-600 font-medium">Hoje</div>
+              <div className="text-lg font-bold text-pink-600">
                 {loading ? '...' : dashboardData.todayAppointments}
               </div>
-              <div className="text-xs text-gray-500">agendamentos</div>
+              <div className="text-[10px] text-gray-500">agendamentos</div>
             </div>
           </div>
           
-          <div className="bg-white p-3 rounded-xl shadow-lg border-l-4 border-green-500">
+          <div className="bg-white p-2.5 rounded-lg shadow-md border-l-4 border-green-500">
             <div className="text-center">
-              <div className="text-sm text-gray-600 font-medium">Pendente</div>
-              <div className="text-base font-bold text-green-600">
+              <div className="text-xs text-gray-600 font-medium">Pendente</div>
+              <div className="text-sm font-bold text-green-600">
                 {loading ? '...' : `R$ ${dashboardData.todayRevenue.toFixed(2)}`}
               </div>
               <div className="text-xs text-gray-500">a receber hoje</div>

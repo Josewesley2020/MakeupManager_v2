@@ -490,10 +490,10 @@ ${appointment.notes ? `📝 *Observações:* ${appointment.notes}` : ''}
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50 py-2 sm:py-4">
-      <Container className="space-y-3 sm:space-y-4">
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50 py-2">
+      <Container className="space-y-3">
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-3 sm:p-4 rounded-2xl shadow-xl">
+        <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-3 rounded-xl shadow-lg">
           <div className="flex items-center justify-between">
             <button
               onClick={onBack}
@@ -511,7 +511,7 @@ ${appointment.notes ? `📝 *Observações:* ${appointment.notes}` : ''}
         </div>
 
         {/* Filtros */}
-        <div className="bg-white p-3 sm:p-4 rounded-xl shadow-lg space-y-3 sm:space-y-4">
+        <div className="bg-white p-3 rounded-lg shadow-md space-y-3">
           {/* Busca */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -522,7 +522,7 @@ ${appointment.notes ? `📝 *Observações:* ${appointment.notes}` : ''}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Nome do cliente ou serviço..."
-              className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
             />
           </div>
 
@@ -535,7 +535,7 @@ ${appointment.notes ? `📝 *Observações:* ${appointment.notes}` : ''}
               <select
                 value={filter}
                 onChange={(e) => setFilter(e.target.value as any)}
-                className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
               >
                 <option value="all">Todos</option>
                 <option value="pending">Aguardando Confirmação</option>
@@ -553,7 +553,7 @@ ${appointment.notes ? `📝 *Observações:* ${appointment.notes}` : ''}
               <select
                 value={paymentFilter}
                 onChange={(e) => setPaymentFilter(e.target.value as any)}
-                className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
               >
                 <option value="all">Todos</option>
                 <option value="pending">Pendente</option>
