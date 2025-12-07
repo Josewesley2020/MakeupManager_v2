@@ -38,10 +38,10 @@ export default function InstallPrompt() {
       e.preventDefault()
       setDeferredPrompt(e as BeforeInstallPromptEvent)
       
-      // Show prompt after 30 seconds (give user time to explore)
+      // Show prompt after 10 seconds (quick but not intrusive)
       setTimeout(() => {
         setShowPrompt(true)
-      }, 30000)
+      }, 10000)
     }
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)

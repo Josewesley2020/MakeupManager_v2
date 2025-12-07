@@ -10,6 +10,7 @@ import CalendarPage from './CalendarPage'
 import FinancialDashboard from './FinancialDashboard'
 import { Container } from './Container'
 import InstallButton from './InstallButton'
+import Version from './Version'
 
 interface DashboardProps {
   user: any
@@ -258,19 +259,23 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
         {/* Header */}
         <div className="bg-gradient-to-r from-pink-500 to-purple-600 text-white p-3 rounded-2xl shadow-xl mb-3">
           <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-xl font-bold">
-                💄 Dashboard
-              </h1>
-              <p className="text-pink-100 text-sm">
-                Bem-vinda, {user?.email?.split('@')[0]}!
-              </p>
-            </div>
             <div className="flex items-center gap-3">
+              <div>
+                <h1 className="text-xl font-bold">
+                  💄 Dashboard
+                </h1>
+                <p className="text-pink-100 text-sm">
+                  Bem-vinda, {user?.email?.split('@')[0]}!
+                </p>
+              </div>
+              <Version />
+            </div>
+            <div className="flex items-center gap-2">
               <InstallButton />
               <button
                 onClick={handleLogout}
-                className="text-pink-100 hover:text-white transition-colors"
+                className="text-pink-100 hover:text-white transition-colors p-2"
+                title="Sair"
               >
                 🚪
               </button>
@@ -323,6 +328,36 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
             <div className="text-xs font-semibold">Financeiro</div>
           </button>
         </div>
+
+        {/* Install App Card - Only show if not installed */}
+        {!window.matchMedia('(display-mode: standalone)').matches && 
+         !(window.navigator as any).standalone && 
+         !localStorage.getItem('pwa-install-card-dismissed') && (
+          <div className="bg-gradient-to-r from-pink-500 to-purple-600 p-4 rounded-xl shadow-xl mb-3 text-white relative overflow-hidden">
+            <button
+              onClick={() => localStorage.setItem('pwa-install-card-dismissed', 'true')}
+              className="absolute top-2 right-2 text-white hover:bg-white hover:bg-opacity-20 rounded-full w-6 h-6 flex items-center justify-center text-xs transition-all"
+              aria-label="Dispensar"
+            >
+              ✕
+            </button>
+            <div className="flex items-start gap-3">
+              <div className="text-4xl flex-shrink-0">📲</div>
+              <div className="flex-1">
+                <h3 className="font-bold text-lg mb-1">Instale o App!</h3>
+                <p className="text-pink-100 text-sm mb-3">
+                  Acesse mais rápido, funcione offline e receba notificações de lembretes
+                </p>
+                <div className="flex items-center gap-2 text-xs mb-3">
+                  <span className="bg-white bg-opacity-20 px-2 py-1 rounded">✓ Offline</span>
+                  <span className="bg-white bg-opacity-20 px-2 py-1 rounded">✓ Rápido</span>
+                  <span className="bg-white bg-opacity-20 px-2 py-1 rounded">✓ Notificações</span>
+                </div>
+                <InstallButton />
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Cards de Status */}
         <div className="grid grid-cols-2 gap-2 mb-4">
