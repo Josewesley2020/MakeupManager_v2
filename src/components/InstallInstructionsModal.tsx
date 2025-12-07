@@ -18,21 +18,20 @@ export default function InstallInstructionsModal({ onClose }: InstallInstruction
   // Chromium-based browsers (Chrome, Edge, Opera) seguem mesmo padrão
   const isChromiumBased = !isIOS && !isSamsungBrowser && !isFirefox
 
-  // Prevent closing when clicking inside the modal
-  const handleModalClick = (e: React.MouseEvent) => {
-    e.stopPropagation()
+  // Handle backdrop click - only close if clicking the backdrop itself
+  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget) {
+      onClose()
+    }
   }
 
   return (
     <div 
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4" 
       style={{ zIndex: 9999 }}
-      onClick={onClose}
+      onClick={handleBackdropClick}
     >
-      <div 
-        className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto"
-        onClick={handleModalClick}
-      >
+      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="bg-gradient-to-r from-pink-500 to-purple-600 p-6 rounded-t-2xl relative">
           <button
