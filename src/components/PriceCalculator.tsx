@@ -83,7 +83,7 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
   const [clientsError, setClientsError] = useState<string | null>(null)
   
   // Cache do perfil do usuário (carregado uma vez)
-  const [userProfile, setUserProfile] = useState<{full_name?: string, instagram?: string} | null>(null)
+  const [userProfile, setUserProfile] = useState<{full_name?: string, instagram?: string, down_payment_percentage?: number} | null>(null)
 
   useEffect(() => {
     let mounted = true
@@ -104,7 +104,7 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
           
           supabase
             .from('profiles')
-            .select('full_name,instagram') // Apenas campos necessários
+            .select('full_name,instagram,down_payment_percentage') // Campos necessários
             .eq('id', user.id)
             .single()
         ])
@@ -243,7 +243,7 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
     }
   }, [appointmentServices, selectedArea, services, areas, includeTravelFee])
 
-  // Definir automaticamente 30% do valor total quando confirmar agendamento
+  // Definir automaticamente percentual de entrada quando confirmar agendamento
   useEffect(() => {
     if (isAppointmentConfirmed && (calculatedPrices.services.length > 0 || (useManualPrice && manualPrice))) {
       const totalValue = useManualPrice && manualPrice ? 
@@ -252,10 +252,12 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
       const area = areas.find(a => a.id === selectedArea)
       const travelFee = includeTravelFee && area ? area.travel_fee : 0
       const finalTotal = useManualPrice && manualPrice ? totalValue : totalValue + travelFee
-      const thirtyPercent = (finalTotal * 0.3).toFixed(2)
-      setDownPaymentAmount(thirtyPercent)
+      // Usar percentual dinâmico do userProfile (padrão 30%)
+      const downPaymentPercentage = (userProfile?.down_payment_percentage || 30) / 100
+      const calculatedDownPayment = (finalTotal * downPaymentPercentage).toFixed(2)
+      setDownPaymentAmount(calculatedDownPayment)
     }
-  }, [isAppointmentConfirmed, calculatedPrices, selectedArea, areas, includeTravelFee, useManualPrice, manualPrice])
+  }, [isAppointmentConfirmed, calculatedPrices, selectedArea, areas, includeTravelFee, useManualPrice, manualPrice, userProfile])
 
   // Atualizar appointmentTime quando hora ou minuto mudam (usuário digitando)
   useEffect(() => {
@@ -1671,7 +1673,7 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
                     R$ {parseFloat(downPaymentAmount || '0').toFixed(2)}
                   </div>
                   <p className="text-xs text-yellow-700">
-                    Este valor da entrada (30%), realmente foi pago pelo cliente?
+                    Este valor da entrada ({userProfile?.down_payment_percentage || 30}%), realmente foi pago pelo cliente?
                   </p>
                 </div>
               </div>
