@@ -1,6 +1,5 @@
 // Install Button Component - Permanent button for PWA installation
 import { useState, useEffect } from 'react'
-import InstallInstructionsModal from './InstallInstructionsModal'
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>
@@ -10,8 +9,7 @@ interface BeforeInstallPromptEvent extends Event {
 export default function InstallButton() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [isInstalled, setIsInstalled] = useState(false)
-  const [showModal, setShowModal] = useState(false)
-
+  
   useEffect(() => {
     // Check if already installed
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches
@@ -46,8 +44,8 @@ export default function InstallButton() {
 
   const handleInstall = async () => {
     if (!deferredPrompt) {
-      // Show styled modal with instructions
-      setShowModal(true)
+      // Navegador não suporta ou já está instalado
+      alert('⚠️ Para instalar o app:\n\n• Chrome/Edge: Use o menu do navegador (⋮) > "Instalar app"\n• Safari iOS: Toque em "Compartilhar" > "Adicionar à Tela Inicial"\n• Samsung Internet: Menu (⋮) > "Adicionar página a"')
       return
     }
 
@@ -86,8 +84,6 @@ export default function InstallButton() {
         <span className="hidden sm:inline">Instalar App</span>
         <span className="sm:hidden">Instalar</span>
       </button>
-
-      {showModal && <InstallInstructionsModal onClose={() => setShowModal(false)} />}
     </>
   )
 }

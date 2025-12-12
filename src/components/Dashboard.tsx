@@ -235,6 +235,7 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
               setQuickAppointmentData({})
               setCurrentView('calendar')
             }}
+            onAppointmentCreated={() => fetchDashboardData()}
           />
         </Container>
       </div>
@@ -422,7 +423,7 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
             <div className="text-lg font-bold">
               {loading ? '...' : dashboardData.overdueAppointments}
             </div>
-            <div className="text-xs opacity-90">Pendências</div>
+            <div className="text-xs opacity-90">Aguardando Atualização</div>
           </div>
         </div>
 

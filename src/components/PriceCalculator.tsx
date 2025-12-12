@@ -9,6 +9,7 @@ interface PriceCalculatorProps {
   initialTime?: string // Hora inicial (HH:MM)
   initialStatus?: 'pending' | 'confirmed' | 'completed' | 'cancelled'
   onBackToCalendar?: () => void // Callback para voltar ao calendário
+  onAppointmentCreated?: () => void // Callback para atualizar dashboard após criar agendamento
 }
 
 interface Service {
@@ -26,7 +27,7 @@ interface ServiceArea {
   travel_fee: number
 }
 
-export function PriceCalculator({ user, initialDate, initialTime, initialStatus, onBackToCalendar }: PriceCalculatorProps) {
+export function PriceCalculator({ user, initialDate, initialTime, initialStatus, onBackToCalendar, onAppointmentCreated }: PriceCalculatorProps) {
   const [services, setServices] = useState<Service[]>([])
   const [areas, setAreas] = useState<ServiceArea[]>([])
   
@@ -490,6 +491,11 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
 
       alert('✅ Orçamento enviado e agendamento criado com sucesso!')
 
+      // 5. Chamar callback para atualizar dashboard (se fornecido)
+      if (onAppointmentCreated) {
+        onAppointmentCreated()
+      }
+
     } catch (error: any) {
       console.error('Erro ao enviar orçamento:', error)
       alert(`Erro ao enviar orçamento: ${error.message}`)
@@ -613,12 +619,15 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
       const downPaymentPaid = parseFloat(downPaymentAmount || '0')
 
       // Calcular tempo total do atendimento (soma da duração de todos os serviços)
-      const totalDurationMinutes = useManualPrice && manualPrice ? 
+      const calculatedDuration = useManualPrice && manualPrice ? 
         60 : // Valor padrão para atendimentos com preço diferenciado
         calculatedPrices.services.reduce((total, service) => {
           const serviceInfo = services.find(s => s.id === service.serviceId)
           return total + (serviceInfo?.duration_minutes || 60) * service.quantity
         }, 0)
+      
+      // Garantir duração mínima de 30 minutos (prevenir zero)
+      const totalDurationMinutes = Math.max(calculatedDuration, 30)
 
       // Determinar status do pagamento
       let finalPaymentStatus: 'pending' | 'paid' = 'pending'
@@ -687,6 +696,11 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
 
       // Recarregar lista de clientes para incluir o novo (se foi criado)
       loadData()
+
+      // Chamar callback para atualizar dashboard (se fornecido)
+      if (onAppointmentCreated) {
+        onAppointmentCreated()
+      }
 
     } catch (error: any) {
       console.error('Erro ao criar agendamento:', error)
@@ -1657,7 +1671,7 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
                     R$ {parseFloat(downPaymentAmount || '0').toFixed(2)}
                   </div>
                   <p className="text-xs text-yellow-700">
-                    Este valor da entrada realmente foi pago pelo cliente?
+                    Este valor da entrada (30%), realmente foi pago pelo cliente?
                   </p>
                 </div>
               </div>
@@ -1669,7 +1683,7 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
                   <div>
                     <h4 className="font-semibold text-red-800 mb-1 text-xs sm:text-sm">Importante</h4>
                     <p className="text-xs text-red-700">
-                      Ao confirmar, o agendamento será marcado como "Confirmado" e não poderá ser alterado. Certifique-se de que o pagamento foi realmente recebido.
+                      Ao confirmar, o agendamento será marcado como "Confirmado". Certifique-se de que o pagamento foi realmente recebido.
                     </p>
                   </div>
                 </div>
