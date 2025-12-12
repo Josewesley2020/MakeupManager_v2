@@ -81,11 +81,14 @@ BEGIN
         AND payment_status = 'pending'
     ),
     
-    -- Overdue appointments (scheduled in past, still pending or confirmed)
+    -- Overdue appointments (scheduled in past with time passed, still pending or confirmed)
     'overdue_appointments_count',
     COUNT(*) FILTER (
-      WHERE scheduled_date < v_today 
-        AND status IN ('confirmed', 'pending')
+      WHERE (
+        (scheduled_date < v_today)
+        OR (scheduled_date = v_today AND scheduled_time < CURRENT_TIME)
+      )
+      AND status IN ('confirmed', 'pending')
     ),
     
     -- Monthly pending revenue (all pending payments for this month's appointments)
