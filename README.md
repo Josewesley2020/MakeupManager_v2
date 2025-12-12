@@ -72,6 +72,7 @@ npm run dev
 - ✅ Preços Regionais com taxas de deslocamento
 - ✅ Perfil do usuário
 - ✅ Configurações de negócio
+- ✅ **NOVO:** Parametrização de percentual de entrada (10-50%)
 
 ### 🔐 Segurança & Infraestrutura
 - ✅ Integração com Supabase

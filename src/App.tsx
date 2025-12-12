@@ -4,7 +4,6 @@ import { LoginForm } from './components/LoginForm'
 import { Dashboard } from './components/Dashboard'
 import ErrorBoundary from './components/ErrorBoundary'
 import OfflineIndicator from './components/OfflineIndicator'
-import InstallPrompt from './components/InstallPrompt'
 import { syncFromServer, clearOfflineData } from './lib/sync-service'
 import type { User } from '@supabase/supabase-js'
 import './App.css'
@@ -72,9 +71,6 @@ function App() {
       
       {/* Main app */}
       <Dashboard user={user} onLogout={() => setUser(null)} />
-      
-      {/* Install prompt (shows after 30 seconds if not installed) */}
-      <InstallPrompt />
     </ErrorBoundary>
   )
 }

@@ -17,6 +17,7 @@ interface UserProfile {
   address: string
   instagram: string
   experience_years: number
+  down_payment_percentage: number
 }
 
 interface ServiceArea {
@@ -50,7 +51,7 @@ interface ServiceRegionalPrice {
 }
 
 export function Settings({ user, onBack }: SettingsProps) {
-  const [activeTab, setActiveTab] = useState<'profile' | 'areas' | 'services' | 'regional-prices'>('profile')
+  const [activeTab, setActiveTab] = useState<'profile' | 'areas' | 'services' | 'regional-prices' | 'parametrizacao'>('profile')
   const [loading, setLoading] = useState(false)
   
   // Profile state
@@ -62,7 +63,8 @@ export function Settings({ user, onBack }: SettingsProps) {
     bio: '',
     address: '',
     instagram: '',
-    experience_years: 0
+    experience_years: 0,
+    down_payment_percentage: 30
   })
 
   // Service areas state
@@ -102,6 +104,7 @@ export function Settings({ user, onBack }: SettingsProps) {
   // Editable string inputs for numeric fields — keep them as strings while editing so
   // the user can delete characters (empty string) without the component forcing 0.
   const [experienceYearsInput, setExperienceYearsInput] = useState<string>('')
+  const [downPaymentPercentageInput, setDownPaymentPercentageInput] = useState<string>('30')
   const [newAreaTravelFeeInput, setNewAreaTravelFeeInput] = useState<string>('')
   const [newServicePriceInput, setNewServicePriceInput] = useState<string>('')
   const [newServiceDurationInput, setNewServiceDurationInput] = useState<string>('60')
@@ -109,6 +112,7 @@ export function Settings({ user, onBack }: SettingsProps) {
 
   // Validation states
   const [experienceYearsValid, setExperienceYearsValid] = useState<boolean>(true)
+  const [downPaymentPercentageValid, setDownPaymentPercentageValid] = useState<boolean>(true)
   const [newAreaTravelFeeValid, setNewAreaTravelFeeValid] = useState<boolean>(true)
   const [newServicePriceValid, setNewServicePriceValid] = useState<boolean>(true)
   const [newServiceDurationValid, setNewServiceDurationValid] = useState<boolean>(true)
@@ -125,7 +129,8 @@ export function Settings({ user, onBack }: SettingsProps) {
   // initialize derived string inputs when profile/service areas are loaded
   useEffect(() => {
     setExperienceYearsInput(profile.experience_years?.toString() || '0')
-  }, [profile.experience_years])
+    setDownPaymentPercentageInput(profile.down_payment_percentage?.toString() || '30')
+  }, [profile.experience_years, profile.down_payment_percentage])
 
   const loadUserData = async () => {
     setLoading(true)
@@ -138,7 +143,10 @@ export function Settings({ user, onBack }: SettingsProps) {
         .single()
 
       if (profileData) {
-        setProfile(profileData)
+        setProfile({
+          ...profileData,
+          down_payment_percentage: profileData.down_payment_percentage || 30
+        })
       }
 
       // Load service areas
@@ -177,7 +185,7 @@ export function Settings({ user, onBack }: SettingsProps) {
 
   const saveProfile = async () => {
     // prevent saving if invalid
-    if (!experienceYearsValid) {
+    if (!experienceYearsValid || !downPaymentPercentageValid) {
       alert('Corrija os valores inválidos antes de salvar o perfil.')
       return
     }
@@ -185,7 +193,8 @@ export function Settings({ user, onBack }: SettingsProps) {
     try {
       // convert experience years from editable string to number
       const experience_years = parseInt(experienceYearsInput, 10) || 0
-      const profileToSave = { ...profile, experience_years }
+      const down_payment_percentage = parseInt(downPaymentPercentageInput, 10) || 30
+      const profileToSave = { ...profile, experience_years, down_payment_percentage }
       console.log('Salvando perfil:', profileToSave)
       
       const { data, error } = await supabase
@@ -629,10 +638,18 @@ export function Settings({ user, onBack }: SettingsProps) {
             >
               💄 Serviços
             </button>
+            <button
+              onClick={() => setActiveTab('parametrizacao')}
+              className={`py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                activeTab === 'parametrizacao'
+                  ? 'bg-white text-pink-600 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-800'
+              }`}
+            >
+              ⚙️ Parametrização
+            </button>
           </div>
-        </div>
-
-        {/* Profile Tab */}
+        </div>        {/* Profile Tab */}
         {activeTab === 'profile' && (
           <div className="space-y-4">
             <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-xl">
@@ -1140,6 +1157,58 @@ export function Settings({ user, onBack }: SettingsProps) {
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Parametrização Tab */}
+        {activeTab === 'parametrizacao' && (
+          <div className="space-y-6">
+            <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-xl">
+              <h2 className="text-lg font-semibold text-gray-800 mb-6">
+                ⚙️ Parametrização do Sistema
+              </h2>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    💰 Percentual de Entrada Padrão
+                  </label>
+                  <div className="flex items-center space-x-3">
+                    <div className="flex-1 max-w-xs">
+                      <NumericInput
+                        value={downPaymentPercentageInput}
+                        onChange={setDownPaymentPercentageInput}
+                        decimalPlaces={0}
+                        formatCurrency={false}
+                        onValidate={setDownPaymentPercentageValid}
+                        placeholder="30"
+                        min={10}
+                        max={50}
+                      />
+                    </div>
+                    <span className="text-gray-600 font-medium">%</span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Percentual padrão cobrado como entrada nos agendamentos (10% a 50%)
+                  </p>
+                  {!downPaymentPercentageValid && (
+                    <p className="text-red-500 text-xs mt-1">
+                      Digite um valor entre 10% e 50%
+                    </p>
+                  )}
+                </div>
+              </div>
+              
+              <div className="mt-6">
+                <button
+                  onClick={saveProfile}
+                  disabled={!downPaymentPercentageValid || loading}
+                  className="w-full bg-green-500 text-white py-3 px-4 rounded-xl font-semibold hover:bg-green-600 transition-colors disabled:opacity-50"
+                >
+                  {loading ? 'Salvando...' : '💾 Salvar Parametrização'}
+                </button>
+              </div>
             </div>
           </div>
         )}
