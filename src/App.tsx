@@ -4,6 +4,7 @@ import { LoginForm } from './components/LoginForm'
 import { Dashboard } from './components/Dashboard'
 import ErrorBoundary from './components/ErrorBoundary'
 import OfflineIndicator from './components/OfflineIndicator'
+import PublicFeedback from './components/PublicFeedback'
 import { syncFromServer, clearOfflineData } from './lib/sync-service'
 import type { User } from '@supabase/supabase-js'
 import './App.css'
@@ -11,11 +12,21 @@ import './App.css'
 function App() {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const [view, setView] = useState<'login' | 'dashboard' | 'feedback'>('login')
 
   useEffect(() => {
-    // Verificar se há um usuário logado
+    // Detectar rota de feedback (rota pública, não precisa autenticação)
+    const hash = window.location.hash
+    if (hash.startsWith('#/feedback/')) {
+      setView('feedback')
+      setLoading(false)
+      return
+    }
+
+    // Verificar se há um usuário logado (rotas normais)
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
+      setView(session?.user ? 'dashboard' : 'login')
       setLoading(false)
     })
 
@@ -24,6 +35,7 @@ function App() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
+      setView(session?.user ? 'dashboard' : 'login')
     })
 
     return () => subscription.unsubscribe()
@@ -58,6 +70,11 @@ function App() {
         </div>
       </div>
     )
+  }
+
+  // Rota pública de feedback (sem autenticação)
+  if (view === 'feedback') {
+    return <PublicFeedback />
   }
 
   if (!user) {
