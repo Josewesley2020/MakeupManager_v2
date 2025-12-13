@@ -138,8 +138,8 @@ export default function PublicFeedback() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-100 to-indigo-100 flex items-center justify-center p-4">
         <div className="text-center">
-          <div className="text-6xl mb-4 animate-pulse">💄</div>
-          <p className="text-xl text-gray-600">Carregando...</p>
+          <div className="text-4xl sm:text-6xl mb-4 animate-pulse">💄</div>
+          <p className="text-lg sm:text-xl text-gray-600">Carregando...</p>
         </div>
       </div>
     )
@@ -149,11 +149,11 @@ export default function PublicFeedback() {
   if (error && !appointment) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-100 to-indigo-100 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-3xl shadow-2xl p-8 text-center">
-          <div className="text-6xl mb-4">⚠️</div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Ops!</h2>
-          <p className="text-gray-600 mb-6">{error}</p>
-          <p className="text-sm text-gray-500">
+        <div className="max-w-md w-full bg-white rounded-2xl sm:rounded-3xl shadow-2xl p-6 sm:p-8 text-center">
+          <div className="text-4xl sm:text-6xl mb-4">⚠️</div>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">Ops!</h2>
+          <p className="text-sm sm:text-base text-gray-600 mb-6">{error}</p>
+          <p className="text-xs sm:text-sm text-gray-500">
             Se você recebeu este link por WhatsApp, entre em contato com a profissional.
           </p>
         </div>
@@ -165,33 +165,33 @@ export default function PublicFeedback() {
   if (alreadySubmitted) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-100 to-indigo-100 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-3xl shadow-2xl p-8 text-center">
-          <div className="text-6xl mb-4">✅</div>
-          <h2 className="text-3xl font-bold text-green-600 mb-4">
+        <div className="max-w-md w-full bg-white rounded-2xl sm:rounded-3xl shadow-2xl p-6 sm:p-8 text-center">
+          <div className="text-4xl sm:text-6xl mb-4">✅</div>
+          <h2 className="text-2xl sm:text-3xl font-bold text-green-600 mb-4">
             Avaliação Já Enviada!
           </h2>
-          <p className="text-gray-600 mb-6">
+          <p className="text-sm sm:text-base text-gray-600 mb-6">
             Você já enviou sua avaliação em {submittedDate ? formatDate(submittedDate) : 'data anterior'}.
           </p>
           
           {/* Mostrar avaliação enviada */}
-          <div className="bg-gradient-to-r from-pink-50 to-purple-50 rounded-2xl p-6 mb-6">
-            <div className="flex justify-center gap-2 mb-4">
+          <div className="bg-gradient-to-r from-pink-50 to-purple-50 rounded-xl sm:rounded-2xl p-4 sm:p-6 mb-6">
+            <div className="flex justify-center gap-1 sm:gap-2 mb-4">
               {[1, 2, 3, 4, 5].map(star => (
-                <span key={star} className={`text-4xl ${rating >= star ? 'text-yellow-500' : 'text-gray-300'}`}>
+                <span key={star} className={`text-3xl sm:text-4xl ${rating >= star ? 'text-yellow-500' : 'text-gray-300'}`}>
                   ⭐
                 </span>
               ))}
             </div>
             {comment && (
-              <div className="mt-4 p-4 bg-white rounded-xl">
-                <p className="text-sm text-gray-600 mb-1">Seu comentário:</p>
-                <p className="text-gray-800 italic">"{comment}"</p>
+              <div className="mt-4 p-3 sm:p-4 bg-white rounded-lg sm:rounded-xl">
+                <p className="text-xs sm:text-sm text-gray-600 mb-1">Seu comentário:</p>
+                <p className="text-sm sm:text-base text-gray-800 italic">"{comment}"</p>
               </div>
             )}
           </div>
           
-          <p className="text-sm text-gray-500">
+          <p className="text-xs sm:text-sm text-gray-500">
             Obrigada pelo feedback! 💕
           </p>
         </div>
@@ -203,35 +203,35 @@ export default function PublicFeedback() {
   if (success) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-100 to-indigo-100 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-3xl shadow-2xl p-8 text-center">
-          <div className="text-6xl mb-4 animate-bounce">🎉</div>
-          <h2 className="text-3xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent mb-4">
+        <div className="max-w-md w-full bg-white rounded-2xl sm:rounded-3xl shadow-2xl p-6 sm:p-8 text-center">
+          <div className="text-4xl sm:text-6xl mb-4 animate-bounce">🎉</div>
+          <h2 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent mb-4">
             Avaliação Enviada!
           </h2>
-          <p className="text-gray-600 mb-6">
+          <p className="text-sm sm:text-base text-gray-600 mb-6">
             Muito obrigada pelo seu feedback! Sua opinião é muito importante para melhorarmos nossos serviços.
           </p>
           
-          <div className="bg-gradient-to-r from-pink-50 to-purple-50 rounded-2xl p-6">
-            <div className="flex justify-center gap-2 mb-4">
+          <div className="bg-gradient-to-r from-pink-50 to-purple-50 rounded-xl sm:rounded-2xl p-4 sm:p-6">
+            <div className="flex justify-center gap-1 sm:gap-2 mb-4">
               {[1, 2, 3, 4, 5].map(star => (
-                <span key={star} className={`text-4xl ${rating >= star ? 'text-yellow-500' : 'text-gray-300'}`}>
+                <span key={star} className={`text-3xl sm:text-4xl ${rating >= star ? 'text-yellow-500' : 'text-gray-300'}`}>
                   ⭐
                 </span>
               ))}
             </div>
-            <p className="text-lg font-semibold text-purple-600 mb-4">
+            <p className="text-base sm:text-lg font-semibold text-purple-600 mb-4">
               {getRatingEmoji(rating)}
             </p>
             {comment && (
-              <div className="mt-4 p-4 bg-white rounded-xl">
-                <p className="text-sm text-gray-600 mb-1">Seu comentário:</p>
-                <p className="text-gray-800 italic">"{comment}"</p>
+              <div className="mt-4 p-3 sm:p-4 bg-white rounded-lg sm:rounded-xl">
+                <p className="text-xs sm:text-sm text-gray-600 mb-1">Seu comentário:</p>
+                <p className="text-sm sm:text-base text-gray-800 italic">"{comment}"</p>
               </div>
             )}
           </div>
           
-          <p className="text-sm text-gray-500 mt-6">
+          <p className="text-xs sm:text-sm text-gray-500 mt-6">
             Esperamos atendê-la novamente em breve! 💄✨
           </p>
         </div>
@@ -242,23 +242,23 @@ export default function PublicFeedback() {
   // Main feedback form
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-100 to-indigo-100 flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white rounded-3xl shadow-2xl p-8">
+      <div className="max-w-md w-full bg-white rounded-2xl sm:rounded-3xl shadow-2xl p-6 sm:p-8">
         {/* Header */}
         <div className="text-center mb-6">
-          <div className="text-6xl mb-4">💄</div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent mb-2">
+          <div className="text-4xl sm:text-6xl mb-3 sm:mb-4">💄</div>
+          <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent mb-2">
             MakeUp Manager
           </h1>
-          <p className="text-gray-600">Avaliação de Atendimento</p>
+          <p className="text-sm sm:text-base text-gray-600">Avaliação de Atendimento</p>
         </div>
 
         {/* Cliente Info */}
         {appointment?.client && (
-          <div className="bg-gradient-to-r from-pink-50 to-purple-50 rounded-2xl p-4 mb-6">
-            <p className="text-sm text-gray-600">Atendimento de:</p>
-            <p className="text-lg font-semibold text-gray-900">{appointment.client.name}</p>
+          <div className="bg-gradient-to-r from-pink-50 to-purple-50 rounded-xl sm:rounded-2xl p-3 sm:p-4 mb-6">
+            <p className="text-xs sm:text-sm text-gray-600">Atendimento de:</p>
+            <p className="text-base sm:text-lg font-semibold text-gray-900">{appointment.client.name}</p>
             {appointment.scheduled_date && (
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-xs sm:text-sm text-gray-500 mt-1">
                 {new Date(appointment.scheduled_date).toLocaleDateString('pt-BR')}
               </p>
             )}
@@ -267,25 +267,25 @@ export default function PublicFeedback() {
 
         {/* Rating Stars */}
         <div className="mb-6">
-          <p className="text-center text-gray-700 font-semibold mb-4 text-lg">
+          <p className="text-center text-gray-700 font-semibold mb-3 sm:mb-4 text-base sm:text-lg">
             Como foi seu atendimento?
           </p>
-          <div className="flex justify-center gap-3 mb-2">
+          <div className="flex justify-center gap-2 sm:gap-3 mb-2">
             {[1, 2, 3, 4, 5].map(star => (
               <button
                 key={star}
                 onClick={() => setRating(star)}
-                className="transition-transform hover:scale-125 active:scale-110 focus:outline-none"
+                className="transition-transform hover:scale-125 active:scale-110 focus:outline-none touch-manipulation p-1"
                 aria-label={`${star} estrela${star > 1 ? 's' : ''}`}
               >
-                <span className={`text-5xl ${rating >= star ? 'text-yellow-500' : 'text-gray-300'}`}>
+                <span className={`text-3xl sm:text-5xl ${rating >= star ? 'text-yellow-500' : 'text-gray-300'}`}>
                   ⭐
                 </span>
               </button>
             ))}
           </div>
           {rating > 0 && (
-            <p className="text-center mt-3 text-base font-medium text-purple-600 animate-fade-in">
+            <p className="text-center mt-2 sm:mt-3 text-sm sm:text-base font-medium text-purple-600 animate-fade-in">
               {getRatingEmoji(rating)}
             </p>
           )}
@@ -293,14 +293,14 @@ export default function PublicFeedback() {
 
         {/* Comment */}
         <div className="mb-6">
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
+          <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2">
             Deixe um comentário (opcional)
           </label>
           <textarea
             value={comment}
             onChange={(e) => setComment(e.target.value.slice(0, 500))}
             placeholder="Conte-nos mais sobre sua experiência..."
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all resize-none"
+            className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all resize-none"
             rows={4}
             maxLength={500}
           />
@@ -311,8 +311,8 @@ export default function PublicFeedback() {
 
         {/* Error message */}
         {error && (
-          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl">
-            <p className="text-sm text-red-600">{error}</p>
+          <div className="mb-4 p-3 sm:p-4 bg-red-50 border border-red-200 rounded-lg sm:rounded-xl">
+            <p className="text-xs sm:text-sm text-red-600">{error}</p>
           </div>
         )}
 
@@ -320,7 +320,7 @@ export default function PublicFeedback() {
         <button
           onClick={submitFeedback}
           disabled={rating === 0 || submitting}
-          className={`w-full py-4 rounded-xl font-bold text-white text-lg transition-all ${
+          className={`w-full py-3 sm:py-4 rounded-lg sm:rounded-xl font-bold text-white text-base sm:text-lg transition-all touch-manipulation ${
             rating === 0 || submitting
               ? 'bg-gray-300 cursor-not-allowed'
               : 'bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 active:scale-95 shadow-lg hover:shadow-xl'
@@ -337,7 +337,7 @@ export default function PublicFeedback() {
         </button>
 
         {/* Footer */}
-        <p className="text-xs text-center text-gray-400 mt-6">
+        <p className="text-xs text-center text-gray-400 mt-4 sm:mt-6">
           Suas informações são seguras e confidenciais
         </p>
       </div>
