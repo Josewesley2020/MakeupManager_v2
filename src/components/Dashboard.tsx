@@ -5,6 +5,7 @@ import { WhatsAppButton } from './WhatsAppButton'
 import { Settings } from './Settings'
 import { PriceCalculator } from './PriceCalculator'
 import ClientsPage from './ClientsPage'
+import PartnersPage from './PartnersPage'
 import AppointmentsPage from './AppointmentsPage'
 import CalendarPage from './CalendarPage'
 import FinancialDashboard from './FinancialDashboard'
@@ -20,7 +21,7 @@ interface DashboardProps {
 export function Dashboard({ user, onLogout }: DashboardProps) {
   const [phoneNumber, setPhoneNumber] = useState('')
   const [message, setMessage] = useState('')
-  const [currentView, setCurrentView] = useState<'dashboard' | 'settings' | 'calculator' | 'clients' | 'appointments' | 'calendar' | 'financial'>('dashboard')
+  const [currentView, setCurrentView] = useState<'dashboard' | 'settings' | 'calculator' | 'clients' | 'partners' | 'appointments' | 'calendar' | 'financial'>('dashboard')
   const [userName, setUserName] = useState<string>('')
   
   // Estados para dados do agendamento rápido (vindo do calendário)
@@ -246,6 +247,10 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
     return <ClientsPage onBack={() => setCurrentView('dashboard')} user={user} />
   }
 
+  if (currentView === 'partners') {
+    return <PartnersPage onBack={() => setCurrentView('dashboard')} user={user} />
+  }
+
   if (currentView === 'appointments') {
     return <AppointmentsPage 
       onBack={() => setCurrentView('dashboard')} 
@@ -323,6 +328,13 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
             <div className="text-xs font-semibold">Clientes</div>
           </button>
           <button
+            onClick={() => setCurrentView('partners')}
+            className="bg-gradient-to-br from-purple-400 to-purple-600 text-white p-2.5 rounded-lg shadow-md active:scale-95 transition-transform"
+          >
+            <div className="text-2xl mb-1">🤝</div>
+            <div className="text-xs font-semibold">Parceiros</div>
+          </button>
+          <button
             onClick={() => setCurrentView('appointments')}
             className="bg-gradient-to-br from-orange-400 to-red-500 text-white p-2.5 rounded-lg shadow-md active:scale-95 transition-transform"
           >
@@ -330,17 +342,10 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
             <div className="text-xs font-semibold">Agendamentos</div>
           </button>
           <button
-            onClick={() => setCurrentView('settings')}
-            className="bg-gradient-to-br from-gray-400 to-gray-600 text-white p-2.5 rounded-lg shadow-md active:scale-95 transition-transform"
-          >
-            <div className="text-2xl mb-1">⚙️</div>
-            <div className="text-xs font-semibold">Config</div>
-          </button>
-          <button
             onClick={() => setCurrentView('calendar')}
             className="bg-gradient-to-br from-cyan-400 to-blue-600 text-white p-2.5 rounded-lg shadow-md active:scale-95 transition-transform"
           >
-            <div className="text-2xl mb-1">📅</div>
+            <div className="text-2xl mb-1">📆</div>
             <div className="text-xs font-semibold">Calendário</div>
           </button>
           <button
@@ -349,6 +354,13 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
           >
             <div className="text-2xl mb-1">💰</div>
             <div className="text-xs font-semibold">Financeiro</div>
+          </button>
+          <button
+            onClick={() => setCurrentView('settings')}
+            className="bg-gradient-to-br from-gray-400 to-gray-600 text-white p-2.5 rounded-lg shadow-md active:scale-95 transition-transform"
+          >
+            <div className="text-2xl mb-1">⚙️</div>
+            <div className="text-xs font-semibold">Config</div>
           </button>
         </div>
 

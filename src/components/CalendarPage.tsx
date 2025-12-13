@@ -79,9 +79,17 @@ export default function CalendarPage({ user, onBack, onCreateAppointment }: Cale
           is_custom_price,
           payment_status,
           notes,
+          is_partnership,
+          partner_id,
+          partner_repayment,
           clients!inner (
             name,
             phone
+          ),
+          partners (
+            id,
+            name,
+            specialty
           ),
           appointment_services (
             quantity,
@@ -702,13 +710,22 @@ export default function CalendarPage({ user, onBack, onCreateAppointment }: Cale
                       className="bg-gradient-to-r from-gray-50 to-white rounded-xl p-4 border-2 border-gray-200 hover:border-gray-300 transition-all duration-200 hover:shadow-md"
                     >
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 gap-2">
-                        <div className="font-bold text-gray-900 text-base sm:text-lg flex items-center">
-                          <span className="mr-2">
-                            {appointment.status === 'confirmed' ? '✅' :
-                             appointment.status === 'pending' ? '⏳' :
-                             appointment.status === 'completed' ? '🎉' : '❌'}
-                          </span>
-                          {appointment.clients?.name || 'Cliente não informado'}
+                        <div className="space-y-1">
+                          <div className="font-bold text-gray-900 text-base sm:text-lg flex items-center gap-2">
+                            <span>
+                              {appointment.status === 'confirmed' ? '✅' :
+                               appointment.status === 'pending' ? '⏳' :
+                               appointment.status === 'completed' ? '🎉' : '❌'}
+                            </span>
+                            <span className="flex-1">{appointment.clients?.name || 'Cliente não informado'}</span>
+                          </div>
+                          {appointment.is_partnership && appointment.partners && (
+                            <div className="mt-2 sm:mt-0 w-full sm:w-auto">
+                              <span className="inline-block bg-gradient-to-r from-rose-500 to-fuchsia-500 text-white text-sm font-bold px-4 py-2 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 animate-pulse border-2 border-rose-400 whitespace-nowrap" title={`Parceiro: ${appointment.partners.name}`}>
+                                <span className="text-xl">👥</span> {appointment.partners.name}
+                              </span>
+                            </div>
+                          )}
                         </div>
                         <span className={`px-3 py-1 text-xs rounded-full font-bold self-start sm:self-auto ${
                           appointment.status === 'confirmed'
