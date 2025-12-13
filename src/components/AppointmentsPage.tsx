@@ -25,6 +25,10 @@ interface Appointment {
   total_duration_minutes: number
   is_custom_price: boolean
   notes: string | null
+  rating: number | null
+  feedback_comment: string | null
+  feedback_submitted_at: string | null
+  feedback_requested_at: string | null
   client: any // Simplificar para any por enquanto
   service_area: any // Simplificar para any por enquanto
   appointment_services: any[] // Simplificar para any por enquanto
@@ -128,6 +132,10 @@ export default function AppointmentsPage({ user, onBack, initialFilter = 'all', 
           total_duration_minutes,
           is_custom_price,
           notes,
+          rating,
+          feedback_comment,
+          feedback_submitted_at,
+          feedback_requested_at,
           client:clients(id, name, phone),
           service_area:service_areas(id, name),
           appointment_services(
@@ -429,6 +437,82 @@ ${appointment.notes ? `📝 *Observações:* ${appointment.notes}` : ''}
     }
   }
 
+  const sendFeedbackRequest = async (appointment: Appointment) => {
+    if (!appointment.client?.phone) {
+      alert('❌ Cliente não possui telefone cadastrado')
+      return
+    }
+
+    // Validação 1: Status é "completed"?
+    if (appointment.status !== 'completed') {
+      alert('⚠️ Só é possível solicitar feedback após marcar o atendimento como "Realizado"')
+      return
+    }
+
+    // Validação 2: Já foi respondido?
+    if (appointment.feedback_submitted_at) {
+      alert('✅ Cliente já enviou feedback para este agendamento!')
+      return
+    }
+
+    // Validação 3: Já foi solicitado?
+    if (appointment.feedback_requested_at) {
+      const confirm = window.confirm(
+        `⚠️ Feedback já foi solicitado em ${formatDateTime(appointment.feedback_requested_at)}.\n\n` +
+        'Deseja enviar a solicitação novamente?'
+      )
+      if (!confirm) return
+    }
+
+    try {
+      // Formatar número do WhatsApp
+      const cleanNumber = appointment.client.phone.replace(/\D/g, '')
+      const whatsappNumber = cleanNumber.startsWith('55') ? cleanNumber : `55${cleanNumber}`
+
+      // URL do feedback (rota pública)
+      const feedbackUrl = `${window.location.origin}${window.location.pathname}#/feedback/${appointment.id}`
+
+      // Criar mensagem
+      const message = `*⭐ AVALIAÇÃO DE ATENDIMENTO*
+
+Olá ${appointment.client.name}!
+
+Adoraríamos saber sua opinião sobre o atendimento realizado em ${appointment.scheduled_date ? formatDate(appointment.scheduled_date) : 'data anterior'}.
+
+👉 *Clique no link abaixo para avaliar:*
+
+${feedbackUrl}
+
+Sua avaliação nos ajuda a melhorar cada vez mais! ⭐
+
+_Leva menos de 1 minuto_ 😊
+
+Obrigada pela confiança! 💕`
+
+      // Codificar mensagem para URL
+      const encodedMessage = encodeURIComponent(message)
+      const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodedMessage}`
+
+      // Marcar que foi solicitado
+      await supabase
+        .from('appointments')
+        .update({ feedback_requested_at: new Date().toISOString() })
+        .eq('id', appointment.id)
+        .eq('user_id', user.id)
+
+      // Abrir WhatsApp
+      window.open(whatsappUrl, '_blank')
+
+      // Atualizar lista local
+      await loadAppointments()
+
+      alert('✅ Solicitação de feedback enviada! O cliente receberá o link por WhatsApp.')
+    } catch (err: any) {
+      console.error('Erro ao solicitar feedback:', err)
+      alert(`❌ Erro ao solicitar feedback: ${err.message}`)
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50 py-2 sm:py-4">
@@ -656,6 +740,23 @@ ${appointment.notes ? `📝 *Observações:* ${appointment.notes}` : ''}
                                 </button>
                               </div>
                             )}
+                            {/* Avaliação do Cliente (resumida) */}
+                            {appointment.rating && (
+                              <div className="flex items-center gap-1 mt-2">
+                                {[1, 2, 3, 4, 5].map(star => (
+                                  <span key={star} className={`text-base ${
+                                    appointment.rating && appointment.rating >= star 
+                                      ? 'text-yellow-500' 
+                                      : 'text-gray-300'
+                                  }`}>
+                                    ⭐
+                                  </span>
+                                ))}
+                                <span className="text-xs text-gray-600 ml-1">
+                                  {appointment.rating}/5
+                                </span>
+                              </div>
+                            )}
                           </div>
                           <div className="text-right sm:text-right">
                             {appointment.status === 'completed' ? (
@@ -718,6 +819,15 @@ ${appointment.notes ? `📝 *Observações:* ${appointment.notes}` : ''}
                             className="px-2 py-1 bg-orange-500 hover:bg-orange-600 text-white rounded text-xs font-medium transition-colors"
                           >
                             🔔 Lembrete
+                          </button>
+                        )}
+                        {appointment.status === 'completed' && !appointment.feedback_submitted_at && (
+                          <button 
+                            onClick={() => sendFeedbackRequest(appointment)}
+                            className="px-2 py-1 bg-purple-500 hover:bg-purple-600 text-white rounded text-xs font-medium transition-colors"
+                            title="Solicitar avaliação do cliente"
+                          >
+                            ⭐ Feedback
                           </button>
                         )}
                         <button 
@@ -900,6 +1010,65 @@ ${appointment.notes ? `📝 *Observações:* ${appointment.notes}` : ''}
                           <div className="bg-yellow-50 px-3 py-2 rounded border border-yellow-200">
                             <div className="text-sm text-gray-900">
                               {appointment.notes}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Avaliação do Cliente */}
+                      {appointment.feedback_submitted_at && appointment.rating && (
+                        <div className="mb-3">
+                          <div className="text-xs font-medium text-gray-700 mb-1 uppercase tracking-wide">⭐ Avaliação do Cliente:</div>
+                          <div className="bg-gradient-to-r from-yellow-50 to-orange-50 px-3 py-3 rounded-lg border border-yellow-200">
+                            {/* Estrelas */}
+                            <div className="flex items-center gap-1 mb-2">
+                              {[1, 2, 3, 4, 5].map(star => (
+                                <span key={star} className={`text-xl ${
+                                  appointment.rating && appointment.rating >= star 
+                                    ? 'text-yellow-500' 
+                                    : 'text-gray-300'
+                                }`}>
+                                  ⭐
+                                </span>
+                              ))}
+                              <span className="ml-2 text-sm font-semibold text-gray-700">
+                                {appointment.rating}/5
+                              </span>
+                            </div>
+                            
+                            {/* Comentário */}
+                            {appointment.feedback_comment && (
+                              <div className="mt-2 p-2 bg-white rounded border border-yellow-100">
+                                <p className="text-sm text-gray-800 italic">
+                                  "{appointment.feedback_comment}"
+                                </p>
+                              </div>
+                            )}
+                            
+                            {/* Data da avaliação */}
+                            <div className="mt-2 text-xs text-gray-500">
+                              Avaliado em {formatDateTime(appointment.feedback_submitted_at)}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Status de Feedback Pendente */}
+                      {appointment.status === 'completed' && 
+                       appointment.feedback_requested_at && 
+                       !appointment.feedback_submitted_at && (
+                        <div className="mb-3">
+                          <div className="bg-purple-50 px-3 py-2 rounded-lg border border-purple-200">
+                            <div className="flex items-center gap-2">
+                              <span className="text-purple-600 text-lg">⏳</span>
+                              <div>
+                                <p className="text-sm font-medium text-purple-800">
+                                  Aguardando avaliação do cliente
+                                </p>
+                                <p className="text-xs text-purple-600">
+                                  Solicitado em {formatDateTime(appointment.feedback_requested_at)}
+                                </p>
+                              </div>
                             </div>
                           </div>
                         </div>

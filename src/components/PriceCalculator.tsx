@@ -314,18 +314,18 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
 
     // Usar perfil do cache (já carregado no useEffect inicial)
     const lines: string[] = []
-    lines.push('💄 *ORÇAMENTO PERSONALIZADO*')
-    lines.push('✨ Produção de Beleza Profissional')
+    lines.push('*ORCAMENTO PERSONALIZADO*')
+    lines.push('Producao de Beleza Profissional')
     lines.push('')
 
     // Informações do cliente
-    lines.push('👤 *CLIENTE*')
+    lines.push('*CLIENTE*')
     lines.push(`Nome: ${clientName}`)
     lines.push(`Telefone: ${clientPhone}`)
     lines.push('')
 
     // Sempre mostrar os serviços, independente se é valor manual ou não
-    lines.push('💄 *SERVIÇOS SOLICITADOS*')
+    lines.push('*SERVICOS SOLICITADOS*')
 
     // Mostrar apenas os nomes dos serviços (sem preços individuais)
     calculatedPrices.services.forEach((service, index) => {
