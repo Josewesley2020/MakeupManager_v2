@@ -1,7 +1,6 @@
 -- =====================================================
--- RPC: create_appointment_with_services
--- Descrição: Cria agendamento com serviços em TRANSAÇÃO ATÔMICA
--- Elimina 3 operações sequenciais (client upsert + appointment + services)
+-- FIX: Atualizar RPC para incluir campos de parceria
+-- FASE 5: Adicionar suporte para is_partnership, partner_id, partner_repayment
 -- =====================================================
 
 CREATE OR REPLACE FUNCTION create_appointment_with_services(
@@ -46,7 +45,7 @@ BEGIN
     RETURNING id INTO v_client_id;
   END IF;
 
-  -- 2. Criar appointment
+  -- 2. Criar appointment COM CAMPOS DE PARCERIA
   INSERT INTO appointments (
     user_id,
     client_id,
@@ -139,4 +138,7 @@ $$;
 GRANT EXECUTE ON FUNCTION create_appointment_with_services(UUID, JSONB, JSONB, JSONB) TO authenticated;
 
 -- Comentário descritivo
-COMMENT ON FUNCTION create_appointment_with_services IS 'Cria agendamento completo (cliente + appointment + serviços) em transação atômica';
+COMMENT ON FUNCTION create_appointment_with_services IS 'Cria agendamento completo com suporte a parcerias (cliente + appointment + serviços) em transação atômica';
+
+-- Verificação
+SELECT 'RPC atualizada com sucesso para salvar campos de parceria!' as status;

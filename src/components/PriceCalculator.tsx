@@ -58,6 +58,13 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
   const [downPaymentAmount, setDownPaymentAmount] = useState('0')
   const [paymentStatus, setPaymentStatus] = useState<'pending' | 'paid' | 'partial'>('pending')
 
+  // Estados de Parceria (FASE 5)
+  const [isPartnership, setIsPartnership] = useState(false)
+  const [partners, setPartners] = useState<Array<{id:string,name:string,specialty:string}>>([])
+  const [selectedPartner, setSelectedPartner] = useState('')
+  const [partnerRepayment, setPartnerRepayment] = useState('0')
+  const [showPartnershipModal, setShowPartnershipModal] = useState(false)
+
   // Controle de criação de agendamento
   const [isCreatingAppointment, setIsCreatingAppointment] = useState(false)
   
@@ -94,8 +101,8 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
       setClientsError(null)
       
       try {
-        // Carregar clientes E perfil em PARALELO (otimização)
-        const [clientsResult, profileResult] = await Promise.all([
+        // Carregar clientes, perfil E parceiros em PARALELO (otimização)
+        const [clientsResult, profileResult, partnersResult] = await Promise.all([
           supabase
             .from('clients')
             .select('id,name,phone,address,instagram')
@@ -106,7 +113,14 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
             .from('profiles')
             .select('full_name,instagram,down_payment_percentage') // Campos necessários
             .eq('id', user.id)
-            .single()
+            .single(),
+
+          supabase
+            .from('partners')
+            .select('id,name,specialty')
+            .eq('user_id', user.id)
+            .eq('is_active', true)
+            .order('created_at', { ascending: false })
         ])
 
         if (mounted) {
@@ -122,6 +136,14 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
           
           if (profileResult.data) {
             setUserProfile(profileResult.data)
+          }
+
+          if (partnersResult.data) {
+            setPartners(partnersResult.data.map((p: any) => ({
+              id: p.id,
+              name: p.name,
+              specialty: p.specialty
+            })))
           }
           
           if (clientsResult.error) throw clientsResult.error
@@ -666,6 +688,9 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
             is_custom_price: useManualPrice,
             total_duration_minutes: totalDurationMinutes,
             whatsapp_sent: false,
+            is_partnership: isPartnership,
+            partner_id: isPartnership && selectedPartner ? selectedPartner : null,
+            partner_repayment: isPartnership && selectedPartner ? parseFloat(partnerRepayment || '0') : 0,
             notes: useManualPrice ?
               `Valor diferenciado: R$ ${parseFloat(manualPrice.replace(',', '.')).toFixed(2)}` :
               `${calculatedPrices.services.length} serviço(s)`
@@ -746,6 +771,79 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
         </div>
       )}
       
+      {/* Opção de Parceria (FASE 5) */}
+      <div className="mb-4 p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-200">
+        <div className="flex items-center space-x-3 mb-3">
+          <input
+            type="checkbox"
+            id="isPartnershipCheckbox"
+            checked={isPartnership}
+            onChange={(e) => {
+              setIsPartnership(e.target.checked)
+              if (!e.target.checked) {
+                setSelectedPartner('')
+                setPartnerRepayment('0')
+              }
+            }}
+            className="h-5 w-5 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+          />
+          <label htmlFor="isPartnershipCheckbox" className="text-sm font-semibold text-purple-800 cursor-pointer">
+            🤝 Atendimento com Parceiro
+          </label>
+        </div>
+
+        {isPartnership && partners.length > 0 && (
+          <div className="space-y-2">
+            {/* Seletor de Parceiro */}
+            <div>
+              <label className="block text-sm font-medium text-purple-800 mb-2">
+                👥 Selecione o Parceiro *
+              </label>
+              <select
+                value={selectedPartner}
+                onChange={(e) => {
+                  setSelectedPartner(e.target.value)
+                  setPartnerRepayment('0')
+                }}
+                className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+              >
+                <option value="">Selecione um parceiro...</option>
+                {partners.map((partner) => (
+                  <option key={partner.id} value={partner.id}>
+                    {partner.name} ({partner.specialty})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Input de Repasse */}
+            {selectedPartner && (
+              <div>
+                <label className="block text-sm font-medium text-purple-800 mb-2">
+                  💰 Valor a Repassar para Parceiro
+                </label>
+                <NumericInput
+                  value={partnerRepayment}
+                  onChange={setPartnerRepayment}
+                  decimalPlaces={2}
+                  formatCurrency={true}
+                  currency="BRL"
+                  locale="pt-BR"
+                  className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="0,00"
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {isPartnership && partners.length === 0 && (
+          <div className="text-xs sm:text-sm text-amber-700 bg-amber-50 p-2 sm:p-3 rounded border border-amber-200">
+            <span>⚠️ Nenhum parceiro cadastrado. Adicione parceiros para usar esta funcionalidade.</span>
+          </div>
+        )}
+      </div>
+
       {/* Opção de Valor Manual */}
       <div className="mb-4 p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-200">
         <div className="flex items-center space-x-3">
@@ -1390,6 +1488,96 @@ export function PriceCalculator({ user, initialDate, initialTime, initialStatus,
                     </span>
                   </div>
                 </div>
+              </div>
+
+              {/* Seção de Parceria (FASE 5) */}
+              <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-2 sm:p-3 sm:p-4 rounded-lg sm:rounded-xl sm:rounded-2xl border border-purple-100">
+                <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2 sm:mb-3 flex items-center">
+                  <span className="mr-1 sm:mr-2">🤝</span>
+                  Atendimento com Parceiro?
+                </label>
+
+                <div className="flex items-center space-x-2 sm:space-x-3 mb-2 sm:mb-3">
+                  <input
+                    type="checkbox"
+                    id="isPartnershipCheckbox"
+                    checked={isPartnership}
+                    onChange={(e) => {
+                      setIsPartnership(e.target.checked)
+                      if (!e.target.checked) {
+                        setSelectedPartner('')
+                        setPartnerRepayment('0')
+                      }
+                    }}
+                    className="h-3 w-3 sm:h-4 sm:w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="isPartnershipCheckbox" className="text-xs sm:text-sm font-medium text-gray-700 cursor-pointer">
+                    Sim, este atendimento é com parceiro
+                  </label>
+                </div>
+
+                {isPartnership && partners.length > 0 && (
+                  <div className="space-y-2 sm:space-y-3">
+                    {/* Seletor de Parceiro */}
+                    <div>
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
+                        👥 Selecione o Parceiro
+                      </label>
+                      <select
+                        value={selectedPartner}
+                        onChange={(e) => {
+                          setSelectedPartner(e.target.value)
+                          setPartnerRepayment('0')
+                        }}
+                        className="w-full px-3 sm:px-4 py-2 border border-purple-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                      >
+                        <option value="">Selecione um parceiro...</option>
+                        {partners.map((partner) => (
+                          <option key={partner.id} value={partner.id}>
+                            {partner.name} ({partner.specialty})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Input de Repasse */}
+                    {selectedPartner && (
+                      <div>
+                        <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
+                          💰 Valor a Repassar para Parceiro
+                        </label>
+                        <NumericInput
+                          value={partnerRepayment}
+                          onChange={setPartnerRepayment}
+                          decimalPlaces={2}
+                          formatCurrency={true}
+                          currency="BRL"
+                          locale="pt-BR"
+                        />
+                        {partnerRepayment && parseFloat(partnerRepayment.replace(',', '.')) > 0 && (
+                          <div className="mt-2 p-2 sm:p-3 bg-white rounded border border-purple-200 text-xs sm:text-sm">
+                            <div className="flex justify-between mb-1">
+                              <span className="text-gray-700">💰 Valor Total:</span>
+                              <span className="font-bold text-purple-600">R$ {totalWithTravel.toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-700">✨ Seu Lucro:</span>
+                              <span className="font-bold text-green-600">
+                                R$ {(totalWithTravel - parseFloat(partnerRepayment.replace(',', '.'))).toFixed(2)}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {isPartnership && partners.length === 0 && (
+                  <div className="text-xs sm:text-sm text-amber-700 bg-amber-50 p-2 sm:p-3 rounded border border-amber-200">
+                    <span>⚠️ Nenhum parceiro cadastrado. Adicione parceiros para usar esta funcionalidade.</span>
+                  </div>
+                )}
               </div>
 
               {/* Checkbox para confirmar agendamento */}

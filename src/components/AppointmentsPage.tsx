@@ -29,8 +29,12 @@ interface Appointment {
   feedback_comment: string | null
   feedback_submitted_at: string | null
   feedback_requested_at: string | null
+  is_partnership: boolean
+  partner_id: string | null
+  partner_repayment: number
   client: any // Simplificar para any por enquanto
   service_area: any // Simplificar para any por enquanto
+  partner: any // Dados do parceiro
   appointment_services: any[] // Simplificar para any por enquanto
 }
 
@@ -51,7 +55,9 @@ export default function AppointmentsPage({ user, onBack, initialFilter = 'all', 
     payment_status: 'pending' as 'pending' | 'paid',
     total_amount_paid: 0,
     payment_total_service: 0,
-    travel_fee: 0
+    travel_fee: 0,
+    is_partnership: false,
+    partner_repayment: 0
   })
 
   useEffect(() => {
@@ -136,8 +142,12 @@ export default function AppointmentsPage({ user, onBack, initialFilter = 'all', 
           feedback_comment,
           feedback_submitted_at,
           feedback_requested_at,
+          is_partnership,
+          partner_id,
+          partner_repayment,
           client:clients(id, name, phone),
           service_area:service_areas(id, name),
+          partner:partners(id, name, specialty),
           appointment_services(
             quantity,
             unit_price,
@@ -254,7 +264,9 @@ export default function AppointmentsPage({ user, onBack, initialFilter = 'all', 
       payment_status: appointment.payment_status,
       total_amount_paid: appointment.total_amount_paid || 0,
       payment_total_service: appointment.payment_total_service,
-      travel_fee: appointment.travel_fee
+      travel_fee: appointment.travel_fee,
+      is_partnership: appointment.is_partnership || false,
+      partner_repayment: appointment.partner_repayment || 0
     })
   }
 
@@ -296,7 +308,9 @@ export default function AppointmentsPage({ user, onBack, initialFilter = 'all', 
           payment_total_service: editForm.payment_total_service,
           travel_fee: editForm.travel_fee,
           payment_total_appointment: newTotalAppointment,
-          is_custom_price: wasFinancialDataEdited ? true : editingAppointment.is_custom_price || false
+          is_custom_price: wasFinancialDataEdited ? true : editingAppointment.is_custom_price || false,
+          is_partnership: editForm.is_partnership,
+          partner_repayment: editForm.partner_repayment
         })
         .eq('id', editingAppointment.id)
         .eq('user_id', user.id)
@@ -402,6 +416,7 @@ Enviado via MakeUp Manager`
 📅 *Data:* ${appointment.scheduled_date ? formatDate(appointment.scheduled_date) : 'Não definida'}
 ⏰ *Horário:* ${appointment.scheduled_time || 'Não definido'}
 📍 *Local:* ${appointment.appointment_address || 'A combinar'}
+${appointment.is_partnership && appointment.partner ? `\n👥 *Parceiro:* ${appointment.partner.name}` : ''}
 💰 *Valor Total:* R$ ${appointment.payment_total_appointment.toFixed(2)}
 💰 *Valor Pago:* R$ ${appointment.total_amount_paid.toFixed(2)}
 💰 *Valor Pendente:* R$ ${(appointment.payment_total_appointment - appointment.total_amount_paid).toFixed(2)}
@@ -692,21 +707,28 @@ Obrigada pela confiança! 💕`
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-2 mb-2">
-                          <div className="flex items-center space-x-2">
-                            <h3 className="font-semibold text-gray-900 text-base truncate">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold text-gray-900 text-base">
                               {appointment.client?.name || 'Cliente não informado'}
                             </h3>
                             {isAppointmentOverdue(appointment) && (
-                              <span className="text-orange-500 text-sm animate-pulse flex-shrink-0" title="Agendamento atrasado - atualizar status">
+                              <span className="text-orange-500 text-lg animate-pulse flex-shrink-0" title="Agendamento atrasado - atualizar status">
                                 ⚠️
                               </span>
                             )}
                             {isAppointmentUpcoming(appointment) && (
-                              <span className="text-purple-600 text-sm animate-pulse flex-shrink-0" title="Próximo">
+                              <span className="text-purple-600 text-lg animate-pulse flex-shrink-0" title="Próximo">
                                 🔥
                               </span>
                             )}
                           </div>
+                          {appointment.is_partnership && appointment.partner && (
+                            <div className="mt-2 sm:mt-0">
+                              <span className="inline-block bg-gradient-to-r from-rose-500 to-fuchsia-500 text-white text-sm font-bold px-4 py-2 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 animate-pulse border-2 border-rose-400 whitespace-nowrap" title={`Parceiro: ${appointment.partner.name}`}>
+                                <span className="text-xl">👥</span> {appointment.partner.name}
+                              </span>
+                            </div>
+                          )}
                         </div>
 
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
@@ -1015,6 +1037,45 @@ Obrigada pela confiança! 💕`
                         </div>
                       )}
 
+                      {/* Detalhes de Parceria (FASE 5) */}
+                      {appointment.is_partnership && appointment.partner && (
+                        <div className="mb-3">
+                          <div className="text-xs font-medium text-gray-700 mb-1 uppercase tracking-wide">🤝 Detalhes de Parceria:</div>
+                          <div className="bg-gradient-to-r from-purple-50 to-pink-50 px-3 py-3 rounded-lg border border-purple-200">
+                            <div className="space-y-2">
+                              <div className="flex justify-between items-center">
+                                <span className="text-sm text-gray-700">👥 Parceiro:</span>
+                                <span className="text-sm font-semibold text-purple-900">
+                                  {appointment.partner.name}
+                                </span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="text-sm text-gray-700">🎯 Especialidade:</span>
+                                <span className="text-sm text-purple-700">
+                                  {appointment.partner.specialty}
+                                </span>
+                              </div>
+                              {appointment.partner_repayment && appointment.partner_repayment > 0 && (
+                                <>
+                                  <div className="flex justify-between items-center pt-2 border-t border-purple-200">
+                                    <span className="text-sm text-gray-700">💰 Valor Repassado:</span>
+                                    <span className="text-sm font-bold text-purple-600">
+                                      R$ {appointment.partner_repayment.toFixed(2)}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-sm text-gray-700">✨ Seu Lucro:</span>
+                                    <span className="text-sm font-bold text-green-600">
+                                      R$ {(appointment.payment_total_appointment - appointment.partner_repayment).toFixed(2)}
+                                    </span>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       {/* Avaliação do Cliente */}
                       {appointment.feedback_submitted_at && appointment.rating && (
                         <div className="mb-3">
@@ -1252,6 +1313,32 @@ Obrigada pela confiança! 💕`
                       />
                     </div>
                   </div>
+
+                  {/* Repasse para Parceiro (se for parceria) */}
+                  {editingAppointment?.is_partnership && (
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-2">
+                        🤝 Valor a Repassar para Parceiro (R$)
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">R$</span>
+                        <input
+                          type="number"
+                          step="10"
+                          value={editForm.partner_repayment}
+                          onChange={(e) => setEditForm({...editForm, partner_repayment: parseFloat(e.target.value) || 0})}
+                          className="w-full pl-12 pr-4 py-3 border-2 border-purple-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 bg-white text-gray-900 font-medium"
+                          placeholder="0.00"
+                          max={editForm.payment_total_service + editForm.travel_fee}
+                        />
+                      </div>
+                      {editForm.partner_repayment > 0 && (
+                        <div className="text-xs text-purple-700 mt-2 p-2 bg-purple-50 rounded border border-purple-200">
+                          ✨ Seu Lucro: R$ {((editForm.payment_total_service + editForm.travel_fee) - editForm.partner_repayment).toFixed(2)}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Total Calculado */}
                   <div className="pt-3 border-t border-indigo-200">
